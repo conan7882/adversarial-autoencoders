@@ -54,13 +54,13 @@ class VAE(BaseModel):
             #     self.image, is_training=self.is_training, init_w=INIT_W,
             #     wd=self._wd, bn=False, name='encoder_CNN')
 
-            cnn_out = modules.encoder_FC(self.image, self.is_training, keep_prob=self.keep_prob, wd=self._wd, name='encoder_FC', init_w=INIT_W)
+            fc_out = modules.encoder_FC(self.image, self.is_training, keep_prob=self.keep_prob, wd=self._wd, name='encoder_FC', init_w=INIT_W)
 
             # fc_out = L.linear(
             #     out_dim=self._n_code*2, layer_dict=self.layers,
             #     inputs=cnn_out, init_w=INIT_W, wd=self._wd, name='Linear')
 
-            return cnn_out
+            return fc_out
 
     def sample_latent(self):
         with tf.variable_scope('sample_latent'):
@@ -93,11 +93,11 @@ class VAE(BaseModel):
             #     z_linear, is_training=self.is_training, out_channel=self._n_channel, 
             #     wd=self._wd, bn=False, name='decoder_CNN')
 
-            cnn_out = modules.decoder_FC(inputs, self.is_training, keep_prob=self.keep_prob, wd=self._wd, name='decoder_FC', init_w=INIT_W)
+            fc_out = modules.decoder_FC(inputs, self.is_training, keep_prob=self.keep_prob, wd=self._wd, name='decoder_FC', init_w=INIT_W)
             out_dim = self._im_size[0] * self._im_size[1] * self._n_channel
             decoder_out = L.linear(
                 out_dim=out_dim, layer_dict=self.layers,
-                inputs=cnn_out, init_w=None, wd=self._wd, name='decoder_linear')
+                inputs=fc_out, init_w=None, wd=self._wd, name='decoder_linear')
             decoder_out = tf.reshape(decoder_out, (-1, self._im_size[0], self._im_size[1], self._n_channel))
 
             return decoder_out
@@ -105,13 +105,14 @@ class VAE(BaseModel):
     def _get_loss(self):
         with tf.name_scope('loss'):
             with tf.name_scope('likelihood'):
-                logits = self.layers['decoder_out']
-                label = self.image
-                likelihood_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-                    labels=label,
-                    logits=logits,
-                    name='likelihood_loss')
-                likelihood_loss = tf.reduce_mean(tf.reduce_sum(likelihood_loss, axis=[1,2,3]))
+                p_hat = tf.nn.sigmoid(self.layers['decoder_out'], name='estimate_prob')
+                p = self.image
+                cross_entropy = p * tf.log(p_hat + 1e-6) + (1 - p) * tf.log(1 - p_hat + 1e-6)
+                # likelihood_loss = tf.nn.sigmoid_cross_entropy_with_logits(
+                #     labels=label,
+                #     logits=logits,
+                #     name='likelihood_loss')
+                cross_entropy_loss = -tf.reduce_mean(tf.reduce_sum(cross_entropy, axis=[1,2,3]))
 
             with tf.name_scope('KL'):
                 kl_loss = tf.reduce_sum(
@@ -123,7 +124,7 @@ class VAE(BaseModel):
                 kl_loss = 0.5 * kl_loss
                 kl_loss = tf.reduce_mean(kl_loss)
 
-            return likelihood_loss + kl_loss
+            return cross_entropy_loss + kl_loss
 
     def _get_optimizer(self):
         return tf.train.AdamOptimizer(self.lr)

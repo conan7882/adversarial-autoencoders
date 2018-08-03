@@ -94,7 +94,7 @@ class Trainer(object):
                 summary_val=cur_summary,
                 summary_writer=summary_writer)
 
-    def valid_epoch(self, sess, batch_size=128, summary_writer=None):
+    def valid_epoch(self, sess, summary_writer=None):
         # self._g_model.set_is_training(True)
         # display_name_list = ['loss']
         # cur_summary = None
@@ -111,9 +111,9 @@ class Trainer(object):
         if self._save_path:
             im_save_path = os.path.join(self._save_path,
                                         'generate_step_{}.png'.format(self.global_step))
-            viz.viz_filters(batch_im=gen_im, grid_size=[10, 10],
-                            save_path=im_save_path, gap=0, gap_color=0,
-                            shuffle=False)
+            viz.viz_batch_im(batch_im=gen_im, grid_size=[10, 10],
+                             save_path=im_save_path, gap=0, gap_color=0,
+                             shuffle=False)
         if summary_writer:
             cur_summary = sess.run(self._valid_summary_op)
             summary_writer.add_summary(cur_summary, self.global_step)

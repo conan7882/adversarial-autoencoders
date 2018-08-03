@@ -6,15 +6,15 @@
 import numpy as np
 
 
-def interpolate(n_code=20):
+def interpolate(plot_size=20):
     """ Util to interpolate between two points in n-dimensional latent space
         Borrow from:
         https://github.com/fastforwardlabs/vae-tf/blob/master/plot.py#L85
     """
     # zs = np.array([np.linspace(start, end, n_code) # interpolate across every z dimension
     #                for start, end in zip(latent_1, latent_2)]).T
-    nx=20
-    ny=20
+    nx=plot_size
+    ny=plot_size
     range_=(-4, 4)
     min_, max_ = range_
     

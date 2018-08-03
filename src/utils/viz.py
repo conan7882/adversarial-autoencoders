@@ -7,7 +7,7 @@ import numpy as np
 import scipy.misc
 
 
-def viz_filters(batch_im, grid_size, save_path,
+def viz_batch_im(batch_im, grid_size, save_path,
                 gap=0, gap_color=0, shuffle=False):
 
     batch_im = np.array(batch_im)
@@ -38,3 +38,5 @@ def viz_filters(batch_im, grid_size, save_path,
                  i * (w + gap) + gap: i * (w + gap) + w + gap, :]\
             = (cur_filter)
     scipy.misc.imsave(save_path, np.squeeze(merge_im))
+
+

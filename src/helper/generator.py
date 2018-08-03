@@ -19,14 +19,22 @@ class Generator(object):
         self._generate_op = generate_model.layers['generate']
         # self._valid_summary_op = generate_model.get_valid_summary()
 
-    def random_generate(self, sess, batch_size=128, z=None):
+    def generate_samples(self, sess, plot_size, z=None, file_id=None):
         if z is None:
             gen_im = sess.run(self._generate_op)
         else:
             gen_im = sess.run(self._generate_op, feed_dict={self._g_model.z: z})
         if self._save_path:
-            im_save_path = os.path.join(self._save_path,
-                                        'random_generate.png')
-            viz.viz_filters(batch_im=gen_im, grid_size=[20, 20],
+            if file_id is not None:
+                im_save_path = os.path.join(
+                    self._save_path, 'generate_im_{}.png'.format(file_id))
+            else:
+                im_save_path = os.path.join(
+                    self._save_path, 'generate_im.png')
+            viz.viz_batch_im(batch_im=gen_im, grid_size=[plot_size, plot_size],
                             save_path=im_save_path, gap=0, gap_color=0,
                             shuffle=False)
+
+
+            
+

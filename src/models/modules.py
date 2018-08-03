@@ -7,6 +7,36 @@ import tensorflow as tf
 import src.models.layers as L
 
 
+def encoder_FC(inputs, is_training, keep_prob=0.5, wd=0, name='encoder_FC', init_w=None):
+    layer_dict = {}
+    layer_dict['cur_input'] = inputs
+    with tf.variable_scope(name):
+        arg_scope = tf.contrib.framework.arg_scope
+        with arg_scope([L.linear],
+                       out_dim=512, layer_dict=layer_dict, init_w=init_w,
+                       wd=wd):
+            L.linear(name='linear1', nl=L.softplus)
+            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
+            L.linear(name='linear2', nl=L.softplus)
+            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
+
+        return layer_dict['cur_input']
+        
+def decoder_FC(inputs, is_training, keep_prob=0.5, wd=0, name='decoder_FC', init_w=None):
+    layer_dict = {}
+    layer_dict['cur_input'] = inputs
+    with tf.variable_scope(name):
+        arg_scope = tf.contrib.framework.arg_scope
+        with arg_scope([L.linear],
+                       out_dim=512, layer_dict=layer_dict, init_w=init_w,
+                       wd=wd):
+            L.linear(name='linear1', nl=L.softplus)
+            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
+            L.linear(name='linear2', nl=L.softplus)
+            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
+
+        return layer_dict['cur_input']
+
 def encoder_CNN(inputs, is_training, wd=0, bn=False, name='encoder_CNN',
                 init_w=tf.keras.initializers.he_normal()):
     # init_w = tf.keras.initializers.he_normal()
@@ -28,22 +58,6 @@ def encoder_CNN(inputs, is_training, wd=0, bn=False, name='encoder_CNN',
 
             return layer_dict['cur_input']
 
-def encoder_FC(inputs, is_training, keep_prob=0.5, wd=0, name='encoder_FC', init_w=None):
-    layer_dict = {}
-    layer_dict['cur_input'] = inputs
-    with tf.variable_scope(name):
-        arg_scope = tf.contrib.framework.arg_scope
-        with arg_scope([L.linear],
-                       out_dim=512, layer_dict=layer_dict, init_w=init_w,
-                       wd=wd):
-            L.linear(name='linear1', nl=tf.nn.relu)
-            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
-            L.linear(name='linear2', nl=tf.nn.relu)
-            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
-
-        return layer_dict['cur_input']
-
-
 def decoder_CNN(inputs, is_training, out_channel=1, wd=0, bn=False, name='decoder_CNN',
                 init_w=tf.keras.initializers.he_normal()):
     # init_w = tf.keras.initializers.he_normal()
@@ -61,17 +75,3 @@ def decoder_CNN(inputs, is_training, out_channel=1, wd=0, bn=False, name='decode
 
             return layer_dict['cur_input']
 
-def decoder_FC(inputs, is_training, keep_prob=0.5, wd=0, name='decoder_FC', init_w=None):
-    layer_dict = {}
-    layer_dict['cur_input'] = inputs
-    with tf.variable_scope(name):
-        arg_scope = tf.contrib.framework.arg_scope
-        with arg_scope([L.linear],
-                       out_dim=512, layer_dict=layer_dict, init_w=init_w,
-                       wd=wd):
-            L.linear(name='linear1', nl=tf.nn.relu)
-            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
-            L.linear(name='linear2', nl=tf.nn.relu)
-            L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
-
-        return layer_dict['cur_input']
