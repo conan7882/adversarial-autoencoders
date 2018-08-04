@@ -5,6 +5,8 @@
 
 # from tensorflow.examples.tutorials.mnist import input_data
 import os
+import gzip
+import struct
 import numpy as np 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
@@ -49,22 +51,57 @@ class MNISTData(RNGDataFlow):
         return data_dict
 
     def _load_files(self, name):
-        mnist_data = input_data.read_data_sets(self._data_dir, one_hot=False)
-        self.im_list = []
-        self.label_list = []
+        if name == 'train':
+            image_name = 'train-images-idx3-ubyte.gz'
+            label_name = 'train-labels-idx1-ubyte.gz'
+        else:
+            image_name = 't10k-images-idx3-ubyte.gz'
+            label_name = 't10k-labels-idx1-ubyte.gz'
 
-        mnist_images, mnist_labels = get_mnist_im_label(name, mnist_data)
+        image_path = os.path.join(self._data_dir, image_name)
+        label_path = os.path.join(self._data_dir, label_name)
 
-        for image, label in zip(mnist_images, mnist_labels):
-            # TODO to be modified
-            image = np.reshape(image, [28, 28, 1])
-            image = self._pf(image)
-            self.im_list.append(image)
-            self.label_list.append(label)
-        self.im_list = np.array(self.im_list)
-        self.label_list = np.array(self.label_list)
+        with gzip.open(image_path) as f:
+            magic = struct.unpack('>I', f.read(4))
+            if magic[0] != 2051:
+                raise Exception('Invalid file: unexpected magic number.')
+            n_im, rows, cols = struct.unpack('>III', f.read(12))
+            image_list = np.fromstring(f.read(n_im * rows * cols), dtype = np.uint8)
+            image_list = np.reshape(image_list, (n_im, rows, cols, 1))
+            # image_list = image_list.astype(np.float32)
+            im_list = []
+            for im in image_list:
+                im_list.append(self._pf(im))
+
+        with gzip.open(label_path) as f:
+            magic = struct.unpack('>I', f.read(4))
+            if magic[0] != 2049:
+                raise Exception('Invalid file: unexpected magic number.')
+            n_label = struct.unpack('>I', f.read(4))
+            label_list = np.fromstring(f.read(n_label[0]), dtype = np.uint8)
+
+        self.im_list = np.array(im_list)
+        self.label_list = np.array(label_list)
 
         self._suffle_files()
+
+    # def _load_files(self, name):
+    #     mnist_data = input_data.read_data_sets(self._data_dir, one_hot=False)
+    #     self.im_list = []
+    #     self.label_list = []
+
+    #     mnist_images, mnist_labels = get_mnist_im_label(name, mnist_data)
+
+    #     for image, label in zip(mnist_images, mnist_labels):
+    #         # TODO to be modified
+    #         image = np.reshape(image, [28, 28, 1])
+    #         image = self._pf(image)
+    #         self.im_list.append(image)
+    #         self.label_list.append(label)
+    #     self.im_list = np.array(self.im_list)
+    #     self.label_list = np.array(self.label_list)
+
+    #     self._suffle_files()
 
     def _suffle_files(self):
         if self._shuffle:

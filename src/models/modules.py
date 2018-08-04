@@ -13,11 +13,11 @@ def encoder_FC(inputs, is_training, keep_prob=0.5, wd=0, name='encoder_FC', init
     with tf.variable_scope(name):
         arg_scope = tf.contrib.framework.arg_scope
         with arg_scope([L.linear],
-                       out_dim=512, layer_dict=layer_dict, init_w=init_w,
+                       out_dim=1000, layer_dict=layer_dict, init_w=init_w,
                        wd=wd):
-            L.linear(name='linear1', nl=L.softplus)
+            L.linear(name='linear1', nl=tf.nn.relu)
             L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
-            L.linear(name='linear2', nl=L.softplus)
+            L.linear(name='linear2', nl=tf.nn.relu)
             L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
 
         return layer_dict['cur_input']
@@ -28,12 +28,26 @@ def decoder_FC(inputs, is_training, keep_prob=0.5, wd=0, name='decoder_FC', init
     with tf.variable_scope(name):
         arg_scope = tf.contrib.framework.arg_scope
         with arg_scope([L.linear],
-                       out_dim=512, layer_dict=layer_dict, init_w=init_w,
+                       out_dim=1000, layer_dict=layer_dict, init_w=init_w,
                        wd=wd):
-            L.linear(name='linear1', nl=L.softplus)
+            L.linear(name='linear1', nl=tf.nn.relu)
             L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
-            L.linear(name='linear2', nl=L.softplus)
+            L.linear(name='linear2', nl=tf.nn.relu)
             L.drop_out(layer_dict, is_training, keep_prob=keep_prob)
+
+        return layer_dict['cur_input']
+
+def discriminator_FC(inputs, is_training, wd=0, name='discriminator_FC', init_w=None):
+    layer_dict = {}
+    layer_dict['cur_input'] = inputs
+    with tf.variable_scope(name):
+        arg_scope = tf.contrib.framework.arg_scope
+        with arg_scope([L.linear],
+                       layer_dict=layer_dict, init_w=init_w,
+                       wd=wd):
+            L.linear(name='linear1', nl=tf.nn.relu, out_dim=1000)
+            L.linear(name='linear2', nl=tf.nn.relu, out_dim=1000)
+            L.linear(name='linear3', out_dim=1)
 
         return layer_dict['cur_input']
 

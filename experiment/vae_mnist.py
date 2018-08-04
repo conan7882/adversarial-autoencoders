@@ -21,7 +21,7 @@ from src.helper.visualizer import Visualizer
 import src.models.distribution as distribution
 
 if platform.node() == 'Qians-MacBook-Pro.local':
-    DATA_PATH = '/Users/gq/Google Drive/Foram/CNN Data/code/GAN/MNIST_data/'
+    DATA_PATH = '/Users/gq/workspace/Dataset/MNIST_data/'
     SAVE_PATH = '/Users/gq/tmp/draw/'
     RESULT_PATH = '/Users/gq/tmp/ram/center/result/'
 elif platform.node() == 'arostitan':
@@ -56,18 +56,16 @@ def get_args():
     return parser.parse_args()
 
 
-# def preprocess_im(im):
-#     thr = 0.7
-#     im[np.where(im < thr)] = 0
-#     im[np.where(im > 0)] = 1
-#     return im
+def preprocess_im(im):
+    im = im / 255.
+    return im
 
 def train():
     FLAGS = get_args()
     train_data = MNISTData('train',
                             data_dir=DATA_PATH,
                             shuffle=True,
-                            # pf=preprocess_im,
+                            pf=preprocess_im,
                             batch_dict_name=['im', 'label'])
     train_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
 
@@ -105,11 +103,6 @@ def train():
 def generate():
     FLAGS = get_args()
     plot_size = 20
-    # if FLAGS.ncode == 2:
-    #     z = distribution.interpolate(plot_size=plot_size)
-    #     z = np.reshape(z, (plot_size*plot_size, 2))
-    # else:
-    #     z = None
 
     with tf.variable_scope('VAE') as scope:
         # scope.reuse_variables()
@@ -133,7 +126,7 @@ def visualize():
     valid_data = MNISTData('test',
                             data_dir=DATA_PATH,
                             shuffle=True,
-                            # pf=preprocess_im,
+                            pf=preprocess_im,
                             batch_dict_name=['im', 'label'])
     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
 
@@ -162,20 +155,25 @@ def visualize():
         generator.generate_samples(sess, plot_size=plot_size, z=z)
 
 def test():
-    data_path = 'E:/Dataset/SVHN/'
-    from scipy.io import loadmat
-
-    data_mat = loadmat(os.path.join(data_path, 'test_32x32.mat'))
-    im_list = data_mat['X'].astype(np.float32)
-    print(im_list.shape)
+    valid_data = MNISTData('test',
+                            data_dir=DATA_PATH,
+                            shuffle=True,
+                            pf=preprocess_im,
+                            batch_dict_name=['im', 'label'])
+    batch_data = valid_data.next_batch_dict()
+    plt.figure()
+    plt.imshow(np.squeeze(batch_data['im'][0]))
+    plt.show()
+    print(batch_data['label'])
 
 if __name__ == '__main__':
     FLAGS = get_args()
 
-    # if FLAGS.train:
-    #     train()
-    # elif FLAGS.generate:
-    #     generate()
-    # else:
-    #     visualize()
-    test()
+    if FLAGS.train:
+        train()
+    elif FLAGS.generate:
+        generate()
+    else:
+        visualize()
+    # test()
+

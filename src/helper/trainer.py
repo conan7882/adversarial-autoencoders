@@ -47,10 +47,85 @@ class Trainer(object):
         self._loss_op = train_model.get_loss()
         self._train_summary_op = train_model.get_train_summary()
 
+        try:
+            self._train_d_op = train_model.get_discrimator_train_op()
+            self._d_loss_op = train_model.d_loss
+            self._g_loss_op = train_model.gan_loss
+        except AttributeError:
+            pass
+
         self._generate_op = generate_model.layers['generate']
         self._valid_summary_op = generate_model.get_valid_summary()
 
         self.global_step = 0
+
+    def train_gan_epoch(self, sess, summary_writer=None):
+        self._t_model.set_is_training(True)
+        display_name_list = ['loss', 'd_loss', 'g_loss']
+        cur_summary = None
+
+        cur_epoch = self._train_data.epochs_completed
+
+        step = 0
+        loss_sum = 0
+        d_loss_sum = 0
+        g_loss_sum = 0
+        while cur_epoch == self._train_data.epochs_completed:
+            self.global_step += 1
+            step += 1
+
+            batch_data = self._train_data.next_batch_dict()
+            im = batch_data['im']
+            label = batch_data['label']
+
+            _, d_loss = sess.run(
+                [self._train_d_op, self._d_loss_op], 
+                feed_dict={self._t_model.image: im,
+                           self._t_model.lr: self._lr * 0.2,
+                           self._t_model.keep_prob: 1.})
+
+            batch_data = self._train_data.next_batch_dict()
+            im = batch_data['im']
+            label = batch_data['label']
+
+            _, d_loss = sess.run(
+                [self._train_d_op, self._d_loss_op], 
+                feed_dict={self._t_model.image: im,
+                           self._t_model.lr: self._lr * 0.2,
+                           self._t_model.keep_prob: 1.})
+
+            batch_data = self._train_data.next_batch_dict()
+            im = batch_data['im']
+            label = batch_data['label']
+
+            _, loss, g_loss, cur_summary = sess.run(
+                [self._train_op, self._loss_op, self._g_loss_op, self._train_summary_op], 
+                feed_dict={self._t_model.image: im,
+                           self._t_model.lr: self._lr,
+                           self._t_model.keep_prob: 1.})
+
+
+            loss_sum += loss
+            d_loss_sum += d_loss
+            g_loss_sum += g_loss
+
+            if step % 100 == 0:
+                display(self.global_step,
+                    step,
+                    [loss_sum, d_loss_sum, g_loss_sum],
+                    display_name_list,
+                    'train',
+                    summary_val=cur_summary,
+                    summary_writer=summary_writer)
+
+        print('==== epoch: {}, lr:{} ===='.format(cur_epoch, self._lr))
+        display(self.global_step,
+                step,
+                [loss_sum, d_loss_sum, g_loss_sum],
+                display_name_list,
+                'train',
+                summary_val=cur_summary,
+                summary_writer=summary_writer)
 
     def train_epoch(self, sess, summary_writer=None):
         self._t_model.set_is_training(True)
