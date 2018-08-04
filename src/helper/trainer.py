@@ -9,6 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 import src.utils.viz as viz
+import src.models.distribution as distribution
 # import matplotlib.pyplot as plt
 # import matplotlib.patches as patches
 
@@ -49,6 +50,7 @@ class Trainer(object):
 
         try:
             self._train_d_op = train_model.get_discrimator_train_op()
+            self._train_g_op = train_model.get_generator_train_op()
             self._d_loss_op = train_model.d_loss
             self._g_loss_op = train_model.gan_loss
         except AttributeError:
@@ -58,11 +60,16 @@ class Trainer(object):
         self._valid_summary_op = generate_model.get_valid_summary()
 
         self.global_step = 0
+        self.epoch_id = 0
 
     def train_gan_epoch(self, sess, summary_writer=None):
         self._t_model.set_is_training(True)
         display_name_list = ['loss', 'd_loss', 'g_loss']
         cur_summary = None
+        # if self.epoch_id == 100:
+        #     self._lr = self._lr / 10
+        if self.epoch_id == 500:
+            self._lr = self._lr / 10
 
         cur_epoch = self._train_data.epochs_completed
 
@@ -70,41 +77,55 @@ class Trainer(object):
         loss_sum = 0
         d_loss_sum = 0
         g_loss_sum = 0
+        self.epoch_id += 1
         while cur_epoch == self._train_data.epochs_completed:
             self.global_step += 1
             step += 1
 
+            # batch_data = self._train_data.next_batch_dict()
+            # im = batch_data['im']
+            # label = batch_data['label']
+
+            # _, d_loss = sess.run(
+            #     [self._train_d_op, self._d_loss_op], 
+            #     feed_dict={self._t_model.image: im,
+            #                self._t_model.lr: self._lr,
+            #                self._t_model.keep_prob: 1.})
+
             batch_data = self._train_data.next_batch_dict()
             im = batch_data['im']
             label = batch_data['label']
+            # real_sample = distribution.gaussian(
+            #     len(im), self._t_model.n_code, mean=0, var=1.0)
+            real_sample = distribution.gaussian_mixture(
+                len(im), n_dim=self._t_model.n_code, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
+            # train autoencoder
+            _, loss, cur_summary = sess.run(
+                [self._train_op, self._loss_op, self._train_summary_op], 
+                feed_dict={self._t_model.image: im,
+                           self._t_model.lr: self._lr,
+                           self._t_model.keep_prob: 1.,
+                           self._t_model.real_distribution: real_sample})
 
+            # train discriminator
+            
             _, d_loss = sess.run(
                 [self._train_d_op, self._d_loss_op], 
                 feed_dict={self._t_model.image: im,
-                           self._t_model.lr: self._lr * 0.2,
-                           self._t_model.keep_prob: 1.})
+                           self._t_model.lr: self._lr,
+                           self._t_model.keep_prob: 1.,
+                           self._t_model.real_distribution: real_sample})
 
-            batch_data = self._train_data.next_batch_dict()
-            im = batch_data['im']
-            label = batch_data['label']
-
-            _, d_loss = sess.run(
-                [self._train_d_op, self._d_loss_op], 
-                feed_dict={self._t_model.image: im,
-                           self._t_model.lr: self._lr * 0.2,
-                           self._t_model.keep_prob: 1.})
-
-            batch_data = self._train_data.next_batch_dict()
-            im = batch_data['im']
-            label = batch_data['label']
-
-            _, loss, g_loss, cur_summary = sess.run(
-                [self._train_op, self._loss_op, self._g_loss_op, self._train_summary_op], 
+            # train generator
+            _, g_loss = sess.run(
+                [self._train_g_op, self._g_loss_op], 
                 feed_dict={self._t_model.image: im,
                            self._t_model.lr: self._lr,
                            self._t_model.keep_prob: 1.})
 
-
+            # batch_data = self._train_data.next_batch_dict()
+            # im = batch_data['im']
+            # label = batch_data['label']
             loss_sum += loss
             d_loss_sum += d_loss
             g_loss_sum += g_loss
@@ -136,6 +157,7 @@ class Trainer(object):
 
         step = 0
         loss_sum = 0
+        self.epoch_id += 1
         while cur_epoch == self._train_data.epochs_completed:
             self.global_step += 1
             step += 1
@@ -169,7 +191,7 @@ class Trainer(object):
                 summary_val=cur_summary,
                 summary_writer=summary_writer)
 
-    def valid_epoch(self, sess, summary_writer=None):
+    def valid_epoch(self, sess, moniter_generation=False, summary_writer=None):
         # self._g_model.set_is_training(True)
         # display_name_list = ['loss']
         # cur_summary = None
@@ -183,7 +205,7 @@ class Trainer(object):
             cur_summary, gen_im = sess.run([self._valid_summary_op, self._generate_op])
             break
 
-        if self._save_path:
+        if moniter_generation and self._save_path:
             im_save_path = os.path.join(self._save_path,
                                         'generate_step_{}.png'.format(self.global_step))
             viz.viz_batch_im(batch_im=gen_im, grid_size=[10, 10],

@@ -41,7 +41,7 @@ class Visualizer(object):
             label_list.extend(labels)
             # print(latent_var)
 
-        ys, xs = np.array(latent_var_list).T
+        xs, ys = np.array(latent_var_list).T
 
         plt.figure()
         # plt.title("round {}: {} in latent space".format(model.step, title))
@@ -61,7 +61,7 @@ class Visualizer(object):
             ax.legend(handles=handles, shadow=True, bbox_to_anchor=(1.05, 0.45),
                       fancybox=True, loc='center left')
 
-        plt.scatter(xs, ys, **kwargs)
+        plt.scatter(xs, ys, s=2, **kwargs)
 
         # if range_:
         #     plt.xlim(*range_)

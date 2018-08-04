@@ -26,7 +26,7 @@ if platform.node() == 'Qians-MacBook-Pro.local':
     RESULT_PATH = '/Users/gq/tmp/ram/center/result/'
 elif platform.node() == 'arostitan':
     DATA_PATH = '/home/qge2/workspace/data/MNIST_data/'
-    SAVE_PATH = '/home/qge2/workspace/data/out/draw/'
+    SAVE_PATH = '/home/qge2/workspace/data/out/vae/vae/'
 else:
     DATA_PATH = 'E://Dataset//MNIST//'
     SAVE_PATH = 'E:/tmp/vae/'
@@ -37,9 +37,11 @@ def get_args():
     parser.add_argument('--train', action='store_true',
                         help='Train the model')
     parser.add_argument('--generate', action='store_true',
-                        help='Test')
+                        help='generate')
     parser.add_argument('--viz', action='store_true',
                         help='visualize')
+    parser.add_argument('--test', action='store_true',
+                        help='test')
     parser.add_argument('--load', type=int, default=99,
                         help='Load step of pre-trained')
     parser.add_argument('--lr', type=float, default=1e-3,
@@ -68,6 +70,12 @@ def train():
                             pf=preprocess_im,
                             batch_dict_name=['im', 'label'])
     train_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
+    valid_data = MNISTData('test',
+                            data_dir=DATA_PATH,
+                            shuffle=True,
+                            pf=preprocess_im,
+                            batch_dict_name=['im', 'label'])
+    valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
 
     with tf.variable_scope('VAE') as scope:
         model = VAE(n_code=FLAGS.ncode, wd=0)
@@ -82,6 +90,7 @@ def train():
     if FLAGS.ncode == 2:
         z = distribution.interpolate(plot_size=20)
         z = np.reshape(z, (400, 2))
+        visualizer = Visualizer(model, save_path=SAVE_PATH)
     else:
         z = None
     generator = Generator(generate_model=valid_model, save_path=SAVE_PATH)
@@ -97,8 +106,11 @@ def train():
         for epoch_id in range(FLAGS.maxepoch):
             trainer.train_epoch(sess, summary_writer=writer)
             trainer.valid_epoch(sess, summary_writer=writer)
-            generator.generate_samples(sess, plot_size=20, z=z, file_id=epoch_id)
-            saver.save(sess, '{}vae-epoch-{}'.format(SAVE_PATH, epoch_id))
+            if epoch_id % 10 == 0:
+                saver.save(sess, '{}vae-epoch-{}'.format(SAVE_PATH, epoch_id))
+                if FLAGS.ncode == 2:
+                    generator.generate_samples(sess, plot_size=20, z=z, file_id=epoch_id)
+                    visualizer.viz_2Dlatent_variable(sess, valid_data, file_id=epoch_id)
 
 def generate():
     FLAGS = get_args()
@@ -173,7 +185,8 @@ if __name__ == '__main__':
         train()
     elif FLAGS.generate:
         generate()
-    else:
+    elif FLAGS.viz:
         visualize()
-    # test()
+    elif FLAGS.test:
+        test()
 

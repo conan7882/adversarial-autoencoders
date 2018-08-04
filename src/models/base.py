@@ -39,8 +39,8 @@ class BaseModel(object):
             loss = self.get_loss()
             var_list = tf.trainable_variables()
             grads = tf.gradients(loss, var_list)
-            [tf.summary.histogram('gradient/' + var.name, grad, 
-             collections=['train']) for grad, var in zip(grads, var_list)]
+            # [tf.summary.histogram('gradient/' + var.name, grad, 
+            #  collections=['train']) for grad, var in zip(grads, var_list)]
             return opt.apply_gradients(zip(grads, var_list))
 
 

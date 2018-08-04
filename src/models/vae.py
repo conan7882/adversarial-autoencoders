@@ -146,5 +146,8 @@ class VAE(BaseModel):
             'out_image',
             tf.cast(tf.nn.sigmoid(self.layers['decoder_out']), tf.float32),
             collections=['train'])
+        tf.summary.histogram(
+            name='encoder distribution', values=self.layers['z'],
+            collections=['train'])
         return tf.summary.merge_all(key='train')
 

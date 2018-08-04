@@ -27,7 +27,7 @@ if platform.node() == 'Qians-MacBook-Pro.local':
     RESULT_PATH = '/Users/gq/tmp/ram/center/result/'
 elif platform.node() == 'arostitan':
     DATA_PATH = '/home/qge2/workspace/data/MNIST_data/'
-    SAVE_PATH = '/home/qge2/workspace/data/out/draw/'
+    SAVE_PATH = '/home/qge2/workspace/data/out/vae/'
 else:
     DATA_PATH = 'E://Dataset//MNIST//'
     SAVE_PATH = 'E:/tmp/vae/'
@@ -39,9 +39,11 @@ def get_args():
     parser.add_argument('--train', action='store_true',
                         help='Train the model')
     parser.add_argument('--generate', action='store_true',
-                        help='Test')
+                        help='generate')
     parser.add_argument('--viz', action='store_true',
                         help='visualize')
+    parser.add_argument('--test', action='store_true',
+                        help='test')
     parser.add_argument('--load', type=int, default=99,
                         help='Load step of pre-trained')
     parser.add_argument('--lr', type=float, default=1e-3,
@@ -53,6 +55,13 @@ def get_args():
                         help='Init learning rate')
     parser.add_argument('--maxepoch', type=int, default=100,
                         help='Max iteration')
+
+    parser.add_argument('--encw', type=float, default=1.,
+                        help='weight of encoder loss')
+    parser.add_argument('--genw', type=float, default=1.,
+                        help='weight of generator loss')
+    parser.add_argument('--disw', type=float, default=1.,
+                        help='weight of discriminator loss')
 
     
     return parser.parse_args()
@@ -77,7 +86,8 @@ def train():
                             batch_dict_name=['im', 'label'])
     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
 
-    model = AAE(n_code=FLAGS.ncode, wd=0)
+    model = AAE(n_code=FLAGS.ncode, wd=0,
+                enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
     model.create_train_model()
 
     valid_model = AAE(n_code=FLAGS.ncode, wd=0)
@@ -103,10 +113,13 @@ def train():
         for epoch_id in range(FLAGS.maxepoch):
             trainer.train_gan_epoch(sess, summary_writer=writer)
             trainer.valid_epoch(sess, summary_writer=writer)
-            generator.generate_samples(sess, plot_size=20, z=z, file_id=epoch_id)
-            if FLAGS.ncode == 2 and epoch_id % 10 == 0:
-                visualizer.viz_2Dlatent_variable(sess, valid_data, file_id=epoch_id)
-            saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
+            
+            if epoch_id % 10 == 0:
+                saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
+                if FLAGS.ncode == 2:
+                    generator.generate_samples(sess, plot_size=20, z=z, file_id=epoch_id)
+                    visualizer.viz_2Dlatent_variable(sess, valid_data, file_id=epoch_id)
+                
 
 def generate():
     FLAGS = get_args()
@@ -163,16 +176,16 @@ def visualize():
         generator.generate_samples(sess, plot_size=plot_size, z=z)
 
 def test():
-    # import matplotlib.pyplot as plt
+
+    import matplotlib.pyplot as plt
     # import src.models.ops as ops
     # samples = ops.tf_sample_standard_diag_guassian(12800, 2)
-    # with tf.Session() as sess:
-    #     p_sample = sess.run(samples)
-    #     print(p_sample)
+    real_sample = distribution.gaussian_mixture(
+        12800, 2, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
 
-    #     plt.figure()
-    #     plt.scatter(p_sample[:,0], p_sample[:,1])
-    #     plt.show()
+    plt.figure()
+    plt.scatter(real_sample[:,0], real_sample[:,1], s=3)
+    plt.show()
 
     # valid_data = MNISTData('test',
     #                         data_dir=DATA_PATH,
@@ -188,11 +201,12 @@ def test():
 if __name__ == '__main__':
     FLAGS = get_args()
 
-    # if FLAGS.train:
-    #     train()
-    # elif FLAGS.generate:
-    #     generate()
-    # else:
-    #     visualize()
-    test()
+    if FLAGS.train:
+        train()
+    elif FLAGS.generate:
+        generate()
+    elif FLAGS.viz:
+        visualize()
+    elif FLAGS.test:
+        test()
 
