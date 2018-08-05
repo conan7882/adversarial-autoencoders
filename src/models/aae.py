@@ -125,8 +125,8 @@ class AAE(BaseModel):
             p = self.image
             # cross_entropy = p * tf.log(p_hat + 1e-6) + (1 - p) * tf.log(1 - p_hat + 1e-6)
             # cross_entropy_loss = -tf.reduce_mean(tf.reduce_sum(cross_entropy, axis=[1,2,3]))
-            # autoencoder_loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(p - p_hat), axis=[1,2,3]))
-            autoencoder_loss = tf.reduce_mean(tf.square(p - p_hat))
+            autoencoder_loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(p - p_hat), axis=[1,2,3]))
+            # autoencoder_loss = tf.reduce_mean(tf.square(p - p_hat))
             # with tf.name_scope('GAN'):
             #     gan_loss = tf.nn.sigmoid_cross_entropy_with_logits(
             #         labels=tf.ones_like(self.layers['fake']),
@@ -137,8 +137,8 @@ class AAE(BaseModel):
             return autoencoder_loss * self._enc_w
 
     def _get_optimizer(self):
-        # return tf.train.AdamOptimizer(self.lr, beta1=0.1)
-        return tf.train.MomentumOptimizer(self.lr, momentum=0.9)
+        return tf.train.AdamOptimizer(self.lr, beta1=0.9)
+        # return tf.train.MomentumOptimizer(self.lr, momentum=0.9)
 
     def get_train_op(self):
         with tf.name_scope('train'):
@@ -157,8 +157,8 @@ class AAE(BaseModel):
                     logits=self.layers['fake'],
                     name='output')
                 self.gan_loss = tf.reduce_mean(gan_loss)
-            # opt = tf.train.AdamOptimizer(self.lr, beta1=0.1)
-            opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
+            opt = tf.train.AdamOptimizer(self.lr, beta1=0.1)
+            # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
             # var_list = tf.trainable_variables(scope=['AE/encoder'])
             var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/encoder') +\
                        tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/sample_latent')
@@ -180,8 +180,8 @@ class AAE(BaseModel):
                 d_loss = tf.reduce_mean(loss_real) + tf.reduce_mean(loss_fake)
                 self.d_loss = d_loss
                 
-            # opt = tf.train.AdamOptimizer(self.lr, beta1=0.1)
-            opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
+            opt = tf.train.AdamOptimizer(self.lr, beta1=0.1)
+            # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
             # dc_var = [var for var in all_variables if 'dc_' in var.name]
             var_list = tf.trainable_variables(scope='discriminator')
             # print(tf.trainable_variables())

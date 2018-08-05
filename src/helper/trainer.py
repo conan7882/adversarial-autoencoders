@@ -95,10 +95,10 @@ class Trainer(object):
             batch_data = self._train_data.next_batch_dict()
             im = batch_data['im']
             label = batch_data['label']
-            # real_sample = distribution.gaussian(
-            #     len(im), self._t_model.n_code, mean=0, var=1.0)
-            real_sample = distribution.gaussian_mixture(
-                len(im), n_dim=self._t_model.n_code, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
+            real_sample = distribution.gaussian(
+                len(im), self._t_model.n_code, mean=0, var=1.0)
+            # real_sample = distribution.gaussian_mixture(
+            #     len(im), n_dim=self._t_model.n_code, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
             # train autoencoder
             _, loss, cur_summary = sess.run(
                 [self._train_op, self._loss_op, self._train_summary_op], 
