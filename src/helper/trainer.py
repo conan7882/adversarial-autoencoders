@@ -35,7 +35,8 @@ def display(global_step,
             summary_writer.add_summary(summary_val, global_step)
 
 class Trainer(object):
-    def __init__(self, train_model, generate_model, train_data, init_lr=1e-3, save_path=None):
+    def __init__(self, train_model, generate_model, train_data,
+                 use_label=False, init_lr=1e-3, save_path=None):
 
         self._save_path = save_path
 
@@ -43,6 +44,7 @@ class Trainer(object):
         self._g_model = generate_model
         self._train_data = train_data
         self._lr = init_lr
+        self._use_label = use_label
 
         self._train_op = train_model.get_train_op()
         self._loss_op = train_model.get_loss()
@@ -62,13 +64,13 @@ class Trainer(object):
         self.global_step = 0
         self.epoch_id = 0
 
-    def train_gan_epoch(self, sess, summary_writer=None):
+    def train_gan_epoch(self, sess, distr_type='gaussian', summary_writer=None):
         self._t_model.set_is_training(True)
         display_name_list = ['loss', 'd_loss', 'g_loss']
         cur_summary = None
-        # if self.epoch_id == 100:
-        #     self._lr = self._lr / 10
-        if self.epoch_id == 500:
+        if self.epoch_id == 50:
+            self._lr = self._lr / 10
+        if self.epoch_id == 200:
             self._lr = self._lr / 10
 
         cur_epoch = self._train_data.epochs_completed
@@ -95,10 +97,18 @@ class Trainer(object):
             batch_data = self._train_data.next_batch_dict()
             im = batch_data['im']
             label = batch_data['label']
-            real_sample = distribution.gaussian(
-                len(im), self._t_model.n_code, mean=0, var=1.0)
-            # real_sample = distribution.gaussian_mixture(
-            #     len(im), n_dim=self._t_model.n_code, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
+
+            if self._use_label:
+                label_indices = label
+            else:
+                label_indices = None
+            if distr_type ==  'gaussian':
+                real_sample = distribution.gaussian(
+                    len(im), self._t_model.n_code, mean=0, var=1.0)
+            else:
+                real_sample = distribution.gaussian_mixture(
+                    len(im), n_dim=self._t_model.n_code, n_labels=10,
+                    x_var=0.5, y_var=0.1, label_indices=label_indices)
             # train autoencoder
             _, loss, cur_summary = sess.run(
                 [self._train_op, self._loss_op, self._train_summary_op], 

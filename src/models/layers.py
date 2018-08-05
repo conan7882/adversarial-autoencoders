@@ -56,6 +56,19 @@ def softmax(logits, axis=-1, name='softmax'):
  
         return tf.exp(stable_in) / normal_p
 
+def leaky_relu(x, leak=0.2, name='LeakyRelu'):
+    """ 
+    leaky_relu 
+        Allow a small non-zero gradient when the unit is not active
+    Args:
+        x (tf.tensor): a tensor 
+        leak (float): Default to 0.2
+    Returns:
+        tf.tensor with name 'name'
+    """
+    return tf.maximum(x, leak*x, name=name)
+
+
 @add_arg_scope
 def linear(out_dim,
            layer_dict=None,

@@ -44,9 +44,11 @@ def get_args():
                         help='visualize')
     parser.add_argument('--test', action='store_true',
                         help='test')
+    parser.add_argument('--label', action='store_true',
+                        help='use label for training')
     parser.add_argument('--load', type=int, default=99,
                         help='Load step of pre-trained')
-    parser.add_argument('--lr', type=float, default=1e-3,
+    parser.add_argument('--lr', type=float, default=2e-4,
                         help='Init learning rate')
     parser.add_argument('--ncode', type=int, default=2,
                         help='number of code')
@@ -58,17 +60,19 @@ def get_args():
 
     parser.add_argument('--encw', type=float, default=1.,
                         help='weight of encoder loss')
-    parser.add_argument('--genw', type=float, default=1.,
+    parser.add_argument('--genw', type=float, default=6.,
                         help='weight of generator loss')
-    parser.add_argument('--disw', type=float, default=1.,
+    parser.add_argument('--disw', type=float, default=6.,
                         help='weight of discriminator loss')
 
+    parser.add_argument('--dist', type=str, default='gaussian',
+                        help='prior')
     
     return parser.parse_args()
 
 
 def preprocess_im(im):
-    im = im / 255.
+    im = im / 255. * 2. - 1.
     return im
 
 def train():
@@ -86,14 +90,15 @@ def train():
                             batch_dict_name=['im', 'label'])
     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
 
-    model = AAE(n_code=FLAGS.ncode, wd=0,
+    model = AAE(n_code=FLAGS.ncode, wd=0, use_label=FLAGS.label,
                 enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
     model.create_train_model()
 
     valid_model = AAE(n_code=FLAGS.ncode, wd=0)
     valid_model.create_generate_model(b_size=400)
 
-    trainer = Trainer(model, valid_model, train_data, init_lr=FLAGS.lr, save_path=SAVE_PATH)
+    trainer = Trainer(model, valid_model, train_data, use_label=FLAGS.label,
+                      init_lr=FLAGS.lr, save_path=SAVE_PATH)
     if FLAGS.ncode == 2:
         z = distribution.interpolate(plot_size=20)
         z = np.reshape(z, (400, 2))
@@ -111,7 +116,7 @@ def train():
         writer.add_graph(sess.graph)
 
         for epoch_id in range(FLAGS.maxepoch):
-            trainer.train_gan_epoch(sess, summary_writer=writer)
+            trainer.train_gan_epoch(sess, distr_type=FLAGS.dist, summary_writer=writer)
             trainer.valid_epoch(sess, summary_writer=writer)
             
             if epoch_id % 10 == 0:

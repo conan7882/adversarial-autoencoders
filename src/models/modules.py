@@ -39,7 +39,8 @@ def decoder_FC(inputs, is_training, n_hidden=1000, nl=tf.nn.relu,
 
         return layer_dict['cur_input']
 
-def discriminator_FC(inputs, is_training, n_hidden=1000, wd=0, name='discriminator_FC', init_w=None):
+def discriminator_FC(inputs, is_training, n_hidden=1000, nl=tf.nn.relu,
+                     wd=0, name='discriminator_FC', init_w=None):
     layer_dict = {}
     layer_dict['cur_input'] = inputs
     with tf.variable_scope(name):
@@ -47,8 +48,8 @@ def discriminator_FC(inputs, is_training, n_hidden=1000, wd=0, name='discriminat
         with arg_scope([L.linear],
                        layer_dict=layer_dict, init_w=init_w,
                        wd=wd):
-            L.linear(name='linear1', nl=tf.nn.relu, out_dim=n_hidden)
-            L.linear(name='linear2', nl=tf.nn.relu, out_dim=n_hidden)
+            L.linear(name='linear1', nl=nl, out_dim=n_hidden)
+            L.linear(name='linear2', nl=nl, out_dim=n_hidden)
             L.linear(name='output', out_dim=1)
 
         return layer_dict['cur_input']

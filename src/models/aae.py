@@ -14,13 +14,15 @@ INIT_W = tf.contrib.layers.variance_scaling_initializer()
 # INIT_W = tf.random_normal_initializer(mean=0., stddev=0.01)
 
 class AAE(BaseModel):
-    def __init__(self, im_size=[28, 28], n_code=1000, n_channel=1, wd=0, label=False,
+    def __init__(self, im_size=[28, 28], n_code=1000, n_channel=1, wd=0,
+                 use_label=False, n_class=None,
                  enc_weight=1., gen_weight=1., dis_weight=1.):
         self._n_channel = n_channel
         self._wd = wd
         self.n_code = n_code
         self._im_size = im_size
-        self._flag_label = label
+        self._flag_label = use_label
+        self._n_class = n_class
         self._enc_w = enc_weight
         self._gen_w = gen_weight
         self._dis_w = dis_weight
@@ -31,7 +33,8 @@ class AAE(BaseModel):
         with tf.variable_scope('AE', reuse=tf.AUTO_REUSE):
             self._create_generate_input()
             self.z = ops.tf_sample_standard_diag_guassian(b_size, self.n_code)
-            self.layers['generate'] = tf.nn.sigmoid(self.decoder(self.z))
+            self.layers['generate'] = (self.decoder(self.z) + 1. ) / 2.
+            # self.layers['generate'] = tf.nn.sigmoid(self.decoder(self.z))
 
     def _create_generate_input(self):
         self.z = tf.placeholder(
@@ -47,8 +50,13 @@ class AAE(BaseModel):
             self.layers['z'], self.layers['z_mu'], self.layers['z_std'], self.layers['z_log_std'] =\
                 self.sample_latent()
             self.layers['decoder_out'] = self.decoder(self.layers['z'])
+            self.layers['sample_im'] = (self.layers['decoder_out'] + 1. ) / 2.
 
-        self.layers['fake'] = self.discriminator(self.layers['z'])
+        decoder_in = self.layers['z']
+        if self._flag_label:
+            one_hot_label = tf.one_hot(self.label, self._n_class)
+            decoder_in = tf.concat((decoder_in, one_hot_label), axis=-1)
+        self.layers['fake'] = self.discriminator(decoder_in)
         # self.layers['real_distribution'] = self.sample_prior()
         self.layers['real'] = self.discriminator(self.real_distribution)
         
@@ -104,11 +112,12 @@ class AAE(BaseModel):
                 inputs=fc_out, init_w=None, wd=self._wd, name='decoder_linear')
             decoder_out = tf.reshape(decoder_out, (-1, self._im_size[0], self._im_size[1], self._n_channel))
 
-            return decoder_out
+            return tf.tanh(decoder_out)
 
     def discriminator(self, inputs):
         with tf.variable_scope('discriminator', reuse=tf.AUTO_REUSE):
             fc_out = modules.discriminator_FC(inputs, self.is_training,
+                                              nl=L.leaky_relu,
                                               wd=self._wd, name='discriminator_FC',
                                               init_w=INIT_W)
             return fc_out
@@ -121,7 +130,7 @@ class AAE(BaseModel):
     def _get_loss(self):
         with tf.name_scope('reconstruction_loss'):
             # with tf.name_scope('likelihood'):
-            p_hat = tf.nn.sigmoid(self.layers['decoder_out'], name='estimate_prob')
+            p_hat = self.layers['decoder_out']
             p = self.image
             # cross_entropy = p * tf.log(p_hat + 1e-6) + (1 - p) * tf.log(1 - p_hat + 1e-6)
             # cross_entropy_loss = -tf.reduce_mean(tf.reduce_sum(cross_entropy, axis=[1,2,3]))
@@ -137,7 +146,7 @@ class AAE(BaseModel):
             return autoencoder_loss * self._enc_w
 
     def _get_optimizer(self):
-        return tf.train.AdamOptimizer(self.lr, beta1=0.9)
+        return tf.train.AdamOptimizer(self.lr, beta1=0.5)
         # return tf.train.MomentumOptimizer(self.lr, momentum=0.9)
 
     def get_train_op(self):
@@ -157,7 +166,7 @@ class AAE(BaseModel):
                     logits=self.layers['fake'],
                     name='output')
                 self.gan_loss = tf.reduce_mean(gan_loss)
-            opt = tf.train.AdamOptimizer(self.lr, beta1=0.1)
+            opt = tf.train.AdamOptimizer(self.lr, beta1=0.5)
             # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
             # var_list = tf.trainable_variables(scope=['AE/encoder'])
             var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/encoder') +\
@@ -180,7 +189,7 @@ class AAE(BaseModel):
                 d_loss = tf.reduce_mean(loss_real) + tf.reduce_mean(loss_fake)
                 self.d_loss = d_loss
                 
-            opt = tf.train.AdamOptimizer(self.lr, beta1=0.1)
+            opt = tf.train.AdamOptimizer(self.lr, beta1=0.5)
             # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
             # dc_var = [var for var in all_variables if 'dc_' in var.name]
             var_list = tf.trainable_variables(scope='discriminator')
@@ -206,7 +215,7 @@ class AAE(BaseModel):
             collections=['train'])
         tf.summary.image(
             'out_image',
-            tf.cast(tf.nn.sigmoid(self.layers['decoder_out']), tf.float32),
+            tf.cast(self.layers['sample_im'], tf.float32),
             collections=['train'])
         tf.summary.histogram(
             name='real distribution', values=self.real_distribution,
