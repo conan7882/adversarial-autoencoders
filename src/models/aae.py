@@ -15,13 +15,16 @@ INIT_W = tf.contrib.layers.variance_scaling_initializer()
 
 class AAE(BaseModel):
     def __init__(self, im_size=[28, 28], n_code=1000, n_channel=1, wd=0,
-                 use_label=False, n_class=None,
+                 use_label=False, n_class=None, use_supervise=False,
                  enc_weight=1., gen_weight=1., dis_weight=1.):
         self._n_channel = n_channel
         self._wd = wd
         self.n_code = n_code
         self._im_size = im_size
+        if use_supervise:
+            use_label = False
         self._flag_label = use_label
+        self._flag_supervise = use_supervise
         self._n_class = n_class
         self._enc_w = enc_weight
         self._gen_w = gen_weight
@@ -33,7 +36,20 @@ class AAE(BaseModel):
         with tf.variable_scope('AE', reuse=tf.AUTO_REUSE):
             self._create_generate_input()
             self.z = ops.tf_sample_standard_diag_guassian(b_size, self.n_code)
-            self.layers['generate'] = (self.decoder(self.z) + 1. ) / 2.
+            decoder_in = self.z
+            if self._flag_supervise:
+                label = []
+                for i in range(self._n_class):
+                    label.extend([i for k in range(10)])
+                # label = [i for i in range(self._n_class)]
+                self.label = tf.convert_to_tensor(label) # [n_class]
+                one_hot_label = tf.one_hot(self.label, self._n_class) # [n_class*10, n_class]
+                # one_hot_label = tf.tile(one_hot_label, [10, 1]) # [n_class*10, n_class]
+                # one_hot_label = tf.transpose()
+                choose_code = decoder_in[:self._n_class] # [n_class, n_code]
+                choose_code = tf.tile(choose_code, [10, 1]) # [n_class*10, n_code]
+                decoder_in = tf.concat((choose_code, one_hot_label), axis=-1)
+            self.layers['generate'] = (self.decoder(decoder_in) + 1. ) / 2.
             # self.layers['generate'] = tf.nn.sigmoid(self.decoder(self.z))
 
     def _create_generate_input(self):
@@ -46,19 +62,35 @@ class AAE(BaseModel):
         self.set_is_training(True)
         self._create_train_input()
         with tf.variable_scope('AE', reuse=tf.AUTO_REUSE):
-            self.layers['encoder_out'] = self.encoder()
+            encoder_in = self.image
+            if self.is_training:
+                encoder_in += tf.random_normal(
+                    tf.shape(encoder_in),
+                    mean=0.0,
+                    stddev=0.6,
+                    dtype=tf.float32)
+            self.encoder_in = encoder_in
+            self.layers['encoder_out'] = self.encoder(self.encoder_in)
             self.layers['z'], self.layers['z_mu'], self.layers['z_std'], self.layers['z_log_std'] =\
                 self.sample_latent()
-            self.layers['decoder_out'] = self.decoder(self.layers['z'])
+
+            decoder_in = self.layers['z']
+            if self._flag_supervise:
+                one_hot_label = tf.one_hot(self.label, self._n_class)
+                decoder_in = tf.concat((decoder_in, one_hot_label), axis=-1)
+            self.layers['decoder_out'] = self.decoder(decoder_in)
             self.layers['sample_im'] = (self.layers['decoder_out'] + 1. ) / 2.
 
-        decoder_in = self.layers['z']
+        fake_in = self.layers['z']
+        real_in = self.real_distribution
         if self._flag_label:
-            one_hot_label = tf.one_hot(self.label, self._n_class)
-            decoder_in = tf.concat((decoder_in, one_hot_label), axis=-1)
-        self.layers['fake'] = self.discriminator(decoder_in)
+            # convert labels to one-hot vectors, add one digit for data without label
+            one_hot_label = tf.one_hot(self.label, self._n_class + 1)
+            fake_in = tf.concat((fake_in, one_hot_label), axis=-1)
+            real_in = tf.concat((real_in, one_hot_label), axis=-1)
+        self.layers['fake'] = self.discriminator(fake_in)
         # self.layers['real_distribution'] = self.sample_prior()
-        self.layers['real'] = self.discriminator(self.real_distribution)
+        self.layers['real'] = self.discriminator(real_in)
         
     def _create_train_input(self):
         self.image = tf.placeholder(
@@ -71,13 +103,13 @@ class AAE(BaseModel):
         self.lr = tf.placeholder(tf.float32, name='lr')
         self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    def encoder(self):
+    def encoder(self, inputs):
         with tf.variable_scope('encoder'):
             # cnn_out = modules.encoder_CNN(
             #     self.image, is_training=self.is_training, init_w=INIT_W,
             #     wd=self._wd, bn=False, name='encoder_CNN')
 
-            fc_out = modules.encoder_FC(self.image, self.is_training, keep_prob=self.keep_prob, wd=self._wd, name='encoder_FC', init_w=INIT_W)
+            fc_out = modules.encoder_FC(inputs, self.is_training, keep_prob=self.keep_prob, wd=self._wd, name='encoder_FC', init_w=INIT_W)
 
             # fc_out = L.linear(
             #     out_dim=self.n_code*2, layer_dict=self.layers,

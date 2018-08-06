@@ -7,31 +7,53 @@ import numpy as np
 from math import sin,cos,sqrt
 
 
-def interpolate(plot_size=20):
-    """ Util to interpolate between two points in n-dimensional latent space
-        Borrow from:
-        https://github.com/fastforwardlabs/vae-tf/blob/master/plot.py#L85
-    """
-    # zs = np.array([np.linspace(start, end, n_code) # interpolate across every z dimension
-    #                for start, end in zip(latent_1, latent_2)]).T
-    nx=plot_size
-    ny=plot_size
-    range_=(-4, 4)
-    min_, max_ = range_
+def interpolate(plot_size=20, interpolate_range=[-3, 3, -3, 3]):
+    assert len(interpolate_range) == 4
+    nx = plot_size
+    ny = plot_size
+    min_x = interpolate_range[0]
+    max_x = interpolate_range[1]
+    min_y = interpolate_range[2]
+    max_y = interpolate_range[3]
     
-    zs = np.rollaxis(np.mgrid[max_:min_:ny*1j, min_:max_:nx*1j], 0, 3)
-    return zs
+    zs = np.rollaxis(np.mgrid[min_x: max_x: nx*1j, max_y:min_y: ny*1j], 0, 3)
+    zs = zs.transpose(1, 0, 2)
+    return np.reshape(zs, (plot_size*plot_size, 2))
 
-def gaussian(batch_size, n_dim, mean=0, var=1):
+def interpolate_gm(plot_size=20, interpolate_range=[-1., 1., -0.2, 0.2],
+                   mode_id=0, n_mode=10):
+    n_samples = plot_size * plot_size
+    def sample(x, y, mode_id, n_mode):
+        shift = 1.4
+        r = 2.0 * np.pi / float(n_mode) * float(mode_id)
+        new_x = x * cos(r) - y * sin(r)
+        new_y = x * sin(r) + y * cos(r)
+        new_x += shift * cos(r)
+        new_y += shift * sin(r)
+        return np.array([new_x, new_y]).reshape((2,))
+
+    interp_grid = interpolate(plot_size=20, interpolate_range=interpolate_range)
+    x = interp_grid[:, 0]
+    y = interp_grid[:, 1]
+
+    z = np.empty((n_samples, 2), dtype=np.float32)
+    for i in range(n_samples):
+        z[i, :2] = sample(x[i], y[i], mode_id, n_mode)
+    return z
+
+def gaussian(batch_size, n_dim, mean=0, var=1.):
     z = np.random.normal(mean, var, (batch_size, n_dim)).astype(np.float32)
     return z
 
-def gaussian_mixture(batch_size, n_dim=2, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None):
+def gaussian_mixture(batch_size, n_dim=2, n_labels=10,
+                     x_var=0.5, y_var=0.1, label_indices=None):
     if n_dim % 2 != 0:
         raise Exception("n_dim must be a multiple of 2.")
 
     def sample(x, y, label, n_labels):
         shift = 1.4
+        if label >= n_labels:
+            label =  np.random.randint(0, n_labels)
         r = 2.0 * np.pi / float(n_labels) * float(label)
         new_x = x * cos(r) - y * sin(r)
         new_y = x * sin(r) + y * cos(r)

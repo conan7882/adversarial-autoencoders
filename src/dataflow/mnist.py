@@ -28,7 +28,8 @@ def get_mnist_im_label(name, mnist_data):
 
 
 class MNISTData(RNGDataFlow):
-    def __init__(self, name, batch_dict_name=None, data_dir='', shuffle=True, pf=identity):
+    def __init__(self, name, data_dir='', n_use_label=None,
+                 batch_dict_name=None, shuffle=True, pf=identity):
         assert os.path.isdir(data_dir)
         self._data_dir = data_dir
 
@@ -42,7 +43,7 @@ class MNISTData(RNGDataFlow):
         assert name in ['train', 'test', 'val']
         self.setup(epoch_val=0, batch_size=1)
 
-        self._load_files(name)
+        self._load_files(name, n_use_label)
         self._image_id = 0
 
     def next_batch_dict(self):
@@ -50,7 +51,7 @@ class MNISTData(RNGDataFlow):
         data_dict = {key: data for key, data in zip(self._batch_dict_name, batch_data)}
         return data_dict
 
-    def _load_files(self, name):
+    def _load_files(self, name, n_use_label):
         if name == 'train':
             image_name = 'train-images-idx3-ubyte.gz'
             label_name = 'train-labels-idx1-ubyte.gz'
@@ -84,6 +85,10 @@ class MNISTData(RNGDataFlow):
         self.label_list = np.array(label_list)
 
         self._suffle_files()
+        if n_use_label is not None:
+            self.label_list[n_use_label:] = 10
+            self._suffle_files()
+
 
     # def _load_files(self, name):
     #     mnist_data = input_data.read_data_sets(self._data_dir, one_hot=False)

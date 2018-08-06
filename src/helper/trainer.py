@@ -35,7 +35,7 @@ def display(global_step,
             summary_writer.add_summary(summary_val, global_step)
 
 class Trainer(object):
-    def __init__(self, train_model, generate_model, train_data,
+    def __init__(self, train_model, generate_model, train_data, distr_type='gaussian',
                  use_label=False, init_lr=1e-3, save_path=None):
 
         self._save_path = save_path
@@ -45,6 +45,7 @@ class Trainer(object):
         self._train_data = train_data
         self._lr = init_lr
         self._use_label = use_label
+        self._dist = distr_type
 
         self._train_op = train_model.get_train_op()
         self._loss_op = train_model.get_loss()
@@ -64,7 +65,7 @@ class Trainer(object):
         self.global_step = 0
         self.epoch_id = 0
 
-    def train_gan_epoch(self, sess, distr_type='gaussian', summary_writer=None):
+    def train_gan_epoch(self, sess, summary_writer=None):
         self._t_model.set_is_training(True)
         display_name_list = ['loss', 'd_loss', 'g_loss']
         cur_summary = None
@@ -102,7 +103,7 @@ class Trainer(object):
                 label_indices = label
             else:
                 label_indices = None
-            if distr_type ==  'gaussian':
+            if self._dist ==  'gaussian':
                 real_sample = distribution.gaussian(
                     len(im), self._t_model.n_code, mean=0, var=1.0)
             else:
@@ -115,6 +116,7 @@ class Trainer(object):
                 feed_dict={self._t_model.image: im,
                            self._t_model.lr: self._lr,
                            self._t_model.keep_prob: 1.,
+                           self._t_model.label: label,
                            self._t_model.real_distribution: real_sample})
 
             # train discriminator
@@ -122,6 +124,7 @@ class Trainer(object):
             _, d_loss = sess.run(
                 [self._train_d_op, self._d_loss_op], 
                 feed_dict={self._t_model.image: im,
+                           self._t_model.label: label,
                            self._t_model.lr: self._lr,
                            self._t_model.keep_prob: 1.,
                            self._t_model.real_distribution: real_sample})
@@ -130,6 +133,7 @@ class Trainer(object):
             _, g_loss = sess.run(
                 [self._train_g_op, self._g_loss_op], 
                 feed_dict={self._t_model.image: im,
+                           self._t_model.label: label,
                            self._t_model.lr: self._lr,
                            self._t_model.keep_prob: 1.})
 
@@ -209,11 +213,11 @@ class Trainer(object):
 
         step = 0
         # while dataflow.epochs_completed == 0:
-        for i in range(10):
-            self.global_step += 1
-            step += 1
-            cur_summary, gen_im = sess.run([self._valid_summary_op, self._generate_op])
-            break
+        # for i in range(10):
+            # self.global_step += 1
+            # step += 1
+        cur_summary, gen_im = sess.run([self._valid_summary_op, self._generate_op])
+            # break
 
         if moniter_generation and self._save_path:
             im_save_path = os.path.join(self._save_path,
