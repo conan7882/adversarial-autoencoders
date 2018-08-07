@@ -65,7 +65,7 @@ class Trainer(object):
         self.global_step = 0
         self.epoch_id = 0
 
-    def train_gan_epoch(self, sess, summary_writer=None):
+    def train_gan_epoch(self, sess, ae_dropout=1.0, summary_writer=None):
         self._t_model.set_is_training(True)
         display_name_list = ['loss', 'd_loss', 'g_loss']
         cur_summary = None
@@ -104,7 +104,7 @@ class Trainer(object):
             else:
                 label_indices = None
             if self._dist ==  'gaussian':
-                real_sample = distribution.gaussian(
+                real_sample = distribution.diagonal_gaussian(
                     len(im), self._t_model.n_code, mean=0, var=1.0)
             else:
                 real_sample = distribution.gaussian_mixture(
@@ -115,7 +115,7 @@ class Trainer(object):
                 [self._train_op, self._loss_op, self._train_summary_op], 
                 feed_dict={self._t_model.image: im,
                            self._t_model.lr: self._lr,
-                           self._t_model.keep_prob: 1.,
+                           self._t_model.keep_prob: ae_dropout,
                            self._t_model.label: label,
                            self._t_model.real_distribution: real_sample})
 

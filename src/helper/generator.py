@@ -57,7 +57,7 @@ class Generator(object):
                                      file_id='{}_{}'.format(file_id, mode_id))
         else:
             if self._dist ==  'gaussian':
-                random_code = distribution.gaussian(
+                random_code = distribution.diagonal_gaussian(
                     n_samples, self._g_model.n_code, mean=0, var=1.0)
             else:
                 random_code = distribution.gaussian_mixture(

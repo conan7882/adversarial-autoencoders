@@ -46,6 +46,8 @@ def get_args():
                         help='test')
     parser.add_argument('--label', action='store_true',
                         help='use label for training')
+    parser.add_argument('--noise', action='store_true',
+                        help='add noise to input')
     parser.add_argument('--semi', action='store_true',
                         help='semi-supervise')
     parser.add_argument('--supervise', action='store_true',
@@ -54,6 +56,8 @@ def get_args():
                         help='Load step of pre-trained')
     parser.add_argument('--lr', type=float, default=2e-4,
                         help='Init learning rate')
+    parser.add_argument('--dropout', type=float, default=1.0,
+                        help='autoencoder dropout')
     parser.add_argument('--ncode', type=int, default=2,
                         help='number of code')
 
@@ -108,7 +112,7 @@ def train():
     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
 
     model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
-                use_label=FLAGS.label, use_supervise=FLAGS.supervise,
+                use_label=FLAGS.label, use_supervise=FLAGS.supervise, add_noise=FLAGS.noise,
                 enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
     model.create_train_model()
 
@@ -131,7 +135,7 @@ def train():
         writer.add_graph(sess.graph)
 
         for epoch_id in range(FLAGS.maxepoch):
-            trainer.train_gan_epoch(sess, summary_writer=writer)
+            trainer.train_gan_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
             trainer.valid_epoch(sess, summary_writer=writer)
             
             if epoch_id % 10 == 0:
@@ -194,20 +198,28 @@ def test():
     # import matplotlib as mpl
     # mpl.use('Agg')
     import src.models.ops as ops
-    # real_sample = distribution.gaussian(10000, n_dim=2, mean=0, var=1.)
-    real_sample = distribution.gaussian_mixture(
-        10000, 2, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
+    real_sample = distribution.diagonal_gaussian(10000, n_dim=2, mean=0, var=1.)
+    # real_sample = distribution.gaussian_mixture(
+    #     10000, 2, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
     
     fig =plt.figure()
     ax = fig.add_subplot(111, aspect='equal')
-    # ax.scatter(real_sample[:,0], real_sample[:,1], s=3)
+    ax.scatter(real_sample[:,0], real_sample[:,1], s=3)
     # 
-    for mode_id in range(0, 10):
-        real_sample = distribution.interpolate_gm(
-            plot_size=20,
-            mode_id=mode_id, n_mode=10)
-        plt.scatter(real_sample[:,0], real_sample[:,1], s=3)
+    # for mode_id in range(0, 10):
+    #     real_sample = distribution.interpolate_gm(
+    #         plot_size=20,
+    #         mode_id=mode_id, n_mode=10)
+    #     plt.scatter(real_sample[:,0], real_sample[:,1], s=3)
 
+    ax.set_xlim([-3.5, 3.5])
+    ax.set_ylim([-3.5, 3.5])
+    # plt.show()
+
+    real_sample = distribution.gaussian(10000, n_dim=2, mean=0, var=1.)
+    fig =plt.figure()
+    ax = fig.add_subplot(111, aspect='equal')
+    ax.scatter(real_sample[:,0], real_sample[:,1], s=3)
     ax.set_xlim([-3.5, 3.5])
     ax.set_ylim([-3.5, 3.5])
     plt.show()

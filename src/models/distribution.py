@@ -45,6 +45,12 @@ def gaussian(batch_size, n_dim, mean=0, var=1.):
     z = np.random.normal(mean, var, (batch_size, n_dim)).astype(np.float32)
     return z
 
+def diagonal_gaussian(batch_size, n_dim, mean=0, var=1.):
+    cov_mat = np.diag([var for i in range(n_dim)])
+    mean_vec = [mean for i in range(n_dim)]
+    z = np.random.multivariate_normal(
+        mean_vec, cov_mat, (batch_size,)).astype(np.float32)
+    return z
 def gaussian_mixture(batch_size, n_dim=2, n_labels=10,
                      x_var=0.5, y_var=0.1, label_indices=None):
     if n_dim % 2 != 0:

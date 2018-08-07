@@ -15,7 +15,7 @@ INIT_W = tf.contrib.layers.variance_scaling_initializer()
 
 class AAE(BaseModel):
     def __init__(self, im_size=[28, 28], n_code=1000, n_channel=1, wd=0,
-                 use_label=False, n_class=None, use_supervise=False,
+                 use_label=False, n_class=None, use_supervise=False, add_noise=False,
                  enc_weight=1., gen_weight=1., dis_weight=1.):
         self._n_channel = n_channel
         self._wd = wd
@@ -25,6 +25,7 @@ class AAE(BaseModel):
             use_label = False
         self._flag_label = use_label
         self._flag_supervise = use_supervise
+        self._flag_noise = add_noise
         self._n_class = n_class
         self._enc_w = enc_weight
         self._gen_w = gen_weight
@@ -63,7 +64,7 @@ class AAE(BaseModel):
         self._create_train_input()
         with tf.variable_scope('AE', reuse=tf.AUTO_REUSE):
             encoder_in = self.image
-            if self.is_training:
+            if self._flag_noise:
                 encoder_in += tf.random_normal(
                     tf.shape(encoder_in),
                     mean=0.0,
@@ -83,13 +84,7 @@ class AAE(BaseModel):
 
         fake_in = self.layers['z']
         real_in = self.real_distribution
-        if self._flag_label:
-            # convert labels to one-hot vectors, add one digit for data without label
-            one_hot_label = tf.one_hot(self.label, self._n_class + 1)
-            fake_in = tf.concat((fake_in, one_hot_label), axis=-1)
-            real_in = tf.concat((real_in, one_hot_label), axis=-1)
         self.layers['fake'] = self.discriminator(fake_in)
-        # self.layers['real_distribution'] = self.sample_prior()
         self.layers['real'] = self.discriminator(real_in)
         
     def _create_train_input(self):
@@ -242,11 +237,15 @@ class AAE(BaseModel):
 
     def get_train_summary(self):
         tf.summary.image(
-            'input_image',
+            'input image',
             tf.cast(self.image, tf.float32),
             collections=['train'])
         tf.summary.image(
-            'out_image',
+            'encoder input',
+            tf.cast(self.encoder_in, tf.float32),
+            collections=['train'])
+        tf.summary.image(
+            'encoder output',
             tf.cast(self.layers['sample_im'], tf.float32),
             collections=['train'])
         tf.summary.histogram(
