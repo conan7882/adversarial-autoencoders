@@ -93,27 +93,30 @@ class AAE(BaseModel):
                     dtype=tf.float32)
             self.encoder_in = encoder_in
             self.layers['encoder_out'] = self.encoder(self.encoder_in)
-
+            # continuous latent variable
             self.layers['z'], self.layers['z_mu'], self.layers['z_std'], self.layers['z_log_std'] =\
                 self.sample_latent(self.layers['encoder_out'])
+            # discrete class variable
             self.layers['cls_logits'] = self.cls_layer(self.layers['encoder_out'])
+            self.layers['y'] = tf.multinomial(self.layers['cls_logits'], num_samples=1,
+                                              name='sample_y')
+            one_hot_y = tf.one_hot(self.label, self._n_class)
 
-            decoder_in = tf.concat((self.layers['z'], self.layers['cls_logits']), axis=-1)
+            decoder_in = tf.concat((self.layers['z'], one_hot_y), axis=-1)
             self.layers['decoder_out'] = self.decoder(decoder_in)
             self.layers['sample_im'] = (self.layers['decoder_out'] + 1. ) / 2.
 
-        with tf.variable_scope('regularization_D'):
+        with tf.variable_scope('regularization_z'):
             fake_in = self.layers['z']
             real_in = self.real_distribution
-            self.layers['fake'] = self.discriminator(fake_in)
-            self.layers['real'] = self.discriminator(real_in)
+            self.layers['fake_z'] = self.discriminator(fake_in)
+            self.layers['real_z'] = self.discriminator(real_in)
 
-        with tf.variable_scope('semisupervised_D'):
-            label_prob = tf.softmax(self.layers['cls_logits'], axis=-1)
-            label_pred = tf.argmax(label_prob, axis=-1)
-            fake_in = 
-            cat_discriminator(self, inputs)
-
+        with tf.variable_scope('regularization_y'):
+            fake_in = one_hot_y
+            real_in = self.real_y
+            self.layers['fake_y'] = self.cat_discriminator(fake_in)
+            self.layers['real_y'] = self.cat_discriminator(real_in)
 
     def create_train_model(self):
         self.set_is_training(True)
@@ -140,8 +143,8 @@ class AAE(BaseModel):
 
         fake_in = self.layers['z']
         real_in = self.real_distribution
-        self.layers['fake'] = self.discriminator(fake_in)
-        self.layers['real'] = self.discriminator(real_in)
+        self.layers['fake_z'] = self.discriminator(fake_in)
+        self.layers['real_z'] = self.discriminator(real_in)
         
     def _create_train_input(self):
         self.image = tf.placeholder(
@@ -151,6 +154,8 @@ class AAE(BaseModel):
             tf.int32, name='label', shape=[None])
         self.real_distribution = tf.placeholder(
             tf.float32, name='real_distribution', shape=[None, self.n_code])
+        self.real_y = tf.placeholder(
+            tf.float32, name='real_y', shape=[None, self._n_class])
         self.lr = tf.placeholder(tf.float32, name='lr')
         self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
@@ -273,31 +278,40 @@ class AAE(BaseModel):
             return opt.apply_gradients(zip(grads, var_list))
 
     def get_discrimator_train_op(self):
-        with tf.name_scope('discrimator_train_op'):
-            with tf.name_scope('discrimator_loss'):
-                loss_real = tf.nn.sigmoid_cross_entropy_with_logits(
-                    labels=tf.ones_like(self.layers['real']),
-                    logits=self.layers['real'],
-                    name='loss_real')
-                loss_fake = tf.nn.sigmoid_cross_entropy_with_logits(
-                    labels=tf.zeros_like(self.layers['fake']),
-                    logits=self.layers['fake'],
-                    name='loss_fake')
-                d_loss = tf.reduce_mean(loss_real) + tf.reduce_mean(loss_fake)
-                self.d_loss = d_loss
-                
-            opt = tf.train.AdamOptimizer(self.lr, beta1=0.5)
-            # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
-            # dc_var = [var for var in all_variables if 'dc_' in var.name]
-            var_list = tf.trainable_variables(scope='discriminator')
-            # print(tf.trainable_variables())
-            print(var_list)
-            grads = tf.gradients(self.d_loss * self._gen_w, var_list)
-            # [tf.summary.histogram('gradient/' + var.name, grad, 
-            #  collections=['train']) for grad, var in zip(grads, var_list)]
-            return opt.apply_gradients(zip(grads, var_list))
+        self.d_loss, train_op = train_discrimator(
+            fake_in=self.layers['fake_z'],
+            real_in=self.layers['real_z'],
+            loss_weight=self._gen_w,
+            lr=self.lr,
+            var_list=tf.trainable_variables(scope='discriminator'),
+            name='z_discrimator_train_op')
+        return train_op
 
-    def get_valid_summary(self):
+        # with tf.name_scope('discrimator_train_op'):
+        #     with tf.name_scope('discrimator_loss'):
+        #         loss_real = tf.nn.sigmoid_cross_entropy_with_logits(
+        #             labels=tf.ones_like(self.layers['real']),
+        #             logits=self.layers['real'],
+        #             name='loss_real')
+        #         loss_fake = tf.nn.sigmoid_cross_entropy_with_logits(
+        #             labels=tf.zeros_like(self.layers['fake']),
+        #             logits=self.layers['fake'],
+        #             name='loss_fake')
+        #         d_loss = tf.reduce_mean(loss_real) + tf.reduce_mean(loss_fake)
+        #         self.d_loss = d_loss
+                
+        #     opt = tf.train.AdamOptimizer(self.lr, beta1=0.5)
+        #     # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
+        #     # dc_var = [var for var in all_variables if 'dc_' in var.name]
+        #     var_list = tf.trainable_variables(scope='discriminator')
+        #     # print(tf.trainable_variables())
+        #     print(var_list)
+        #     grads = tf.gradients(self.d_loss * self._gen_w, var_list)
+        #     # [tf.summary.histogram('gradient/' + var.name, grad, 
+        #     #  collections=['train']) for grad, var in zip(grads, var_list)]
+        #     return opt.apply_gradients(zip(grads, var_list))
+
+    def get_generate_summary(self):
         with tf.name_scope('generate'):
             tf.summary.image(
                 'image',
@@ -305,25 +319,38 @@ class AAE(BaseModel):
                 collections=['generate'])
         return tf.summary.merge_all(key='generate')
 
+    def get_valid_summary(self):
+        with tf.name_scope('valid'):
+            tf.summary.image(
+                'encoder input',
+                tf.cast(self.encoder_in, tf.float32),
+                collections=['valid'])
+            tf.summary.image(
+                'decoder output',
+                tf.cast(self.layers['sample_im'], tf.float32),
+                collections=['valid'])  
+            return tf.summary.merge_all(key='valid')
+
     def get_train_summary(self):
-        tf.summary.image(
-            'input image',
-            tf.cast(self.image, tf.float32),
-            collections=['train'])
-        tf.summary.image(
-            'encoder input',
-            tf.cast(self.encoder_in, tf.float32),
-            collections=['train'])
-        tf.summary.image(
-            'encoder output',
-            tf.cast(self.layers['sample_im'], tf.float32),
-            collections=['train'])
-        tf.summary.histogram(
-            name='real distribution', values=self.real_distribution,
-            collections=['train'])
-        tf.summary.histogram(
-            name='encoder distribution', values=self.layers['z'],
-            collections=['train'])
+        with tf.name_scope('train'):
+            tf.summary.image(
+                'input image',
+                tf.cast(self.image, tf.float32),
+                collections=['train'])
+            tf.summary.image(
+                'encoder input',
+                tf.cast(self.encoder_in, tf.float32),
+                collections=['train'])
+            tf.summary.image(
+                'decoder output',
+                tf.cast(self.layers['sample_im'], tf.float32),
+                collections=['train'])
+            tf.summary.histogram(
+                name='real distribution', values=self.real_distribution,
+                collections=['train'])
+            tf.summary.histogram(
+                name='encoder distribution', values=self.layers['z'],
+                collections=['train'])
 
         # var_list = tf.trainable_variables()
         # [tf.summary.histogram('gradient/' + var.name, grad, 

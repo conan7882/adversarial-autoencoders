@@ -30,7 +30,7 @@ elif platform.node() == 'arostitan':
     SAVE_PATH = '/home/qge2/workspace/data/out/vae/'
 else:
     DATA_PATH = 'E://Dataset//MNIST//'
-    SAVE_PATH = 'E:/tmp/vae/'
+    SAVE_PATH = 'E:/tmp/vae/tmp/'
     # RESULT_PATH = 'E:/tmp/ram/trans/result/'
 
 
@@ -38,6 +38,11 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action='store_true',
                         help='Train the model')
+    parser.add_argument('--train_supervised', action='store_true',
+                        help='Train the model')
+    parser.add_argument('--train_semisupervised', action='store_true',
+                        help='Train the model')
+    
     parser.add_argument('--generate', action='store_true',
                         help='generate')
     parser.add_argument('--viz', action='store_true',
@@ -90,8 +95,74 @@ def preprocess_im(im):
     im = im / 255. * 2. - 1.
     return im
 
-# def semisupervise_train():
+def read_train_data(batch_size, n_use_label=None, n_use_sample=None):
+    data = MNISTData('train',
+                     data_dir=DATA_PATH,
+                     shuffle=True,
+                     pf=preprocess_im,
+                     n_use_label=n_use_label,
+                     n_use_sample=n_use_sample,
+                     batch_dict_name=['im', 'label'])
+    data.setup(epoch_val=0, batch_size=batch_size)
+    return data
 
+def read_valid_data(batch_size):
+    data = MNISTData('test',
+                     data_dir=DATA_PATH,
+                     shuffle=True,
+                     pf=preprocess_im,
+                     batch_dict_name=['im', 'label'])
+    data.setup(epoch_val=0, batch_size=batch_size)
+    return data
+
+def semisupervised_train():
+    FLAGS = get_args()
+
+    train_data = read_train_data(FLAGS.bsize)
+    valid_data = read_valid_data(FLAGS.bsize)
+
+    model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
+                use_label=False, use_supervise=False, add_noise=FLAGS.noise,
+                enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
+    model.create_semisupervised_train_model()
+
+def supervised_train():
+    FLAGS = get_args()
+
+    label_train_data = read_train_data(FLAGS.bsize, n_use_sample=1280)
+    unlabel_train_data = read_train_data(FLAGS.bsize)
+    valid_data = read_valid_data(FLAGS.bsize)
+
+    model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
+                use_label=False, use_supervise=True, add_noise=FLAGS.noise,
+                enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
+    model.create_train_model()
+
+    valid_model = AAE(n_code=FLAGS.ncode, use_supervise=True, n_class=10)
+    valid_model.create_generate_model(b_size=400)
+    valid_model.create_generate_style_model(n_sample=10)
+
+    trainer = Trainer(model, valid_model, train_data, distr_type=FLAGS.dist_type, use_label=FLAGS.label,
+                      init_lr=FLAGS.lr, save_path=SAVE_PATH)
+    generator = Generator(generate_model=valid_model, save_path=SAVE_PATH,
+                          distr_type=FLAGS.dist_type, n_labels=10, use_label=FLAGS.label)
+
+    sessconfig = tf.ConfigProto()
+    sessconfig.gpu_options.allow_growth = True
+    with tf.Session(config=sessconfig) as sess:
+        writer = tf.summary.FileWriter(SAVE_PATH)
+        saver = tf.train.Saver()
+        sess.run(tf.global_variables_initializer())
+        writer.add_graph(sess.graph)
+
+        for epoch_id in range(FLAGS.maxepoch):
+            trainer.train_gan_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
+            trainer.valid_epoch(sess, dataflow=valid_data, summary_writer=writer)
+            
+            if epoch_id % 10 == 0:
+                saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
+                generator.sample_style(sess, valid_data, plot_size=10, file_id=epoch_id, n_sample=10)
+        saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
 
 def train():
     FLAGS = get_args()
@@ -102,29 +173,18 @@ def train():
         n_use_label = 10000
         print('*** Only {} labels are used. ***'.format(n_use_label))
 
-    train_data = MNISTData('train',
-                            data_dir=DATA_PATH,
-                            shuffle=True,
-                            pf=preprocess_im,
-                            n_use_label=n_use_label,
-                            batch_dict_name=['im', 'label'])
-    train_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
-    valid_data = MNISTData('test',
-                            data_dir=DATA_PATH,
-                            shuffle=True,
-                            pf=preprocess_im,
-                            batch_dict_name=['im', 'label'])
-    valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
+    train_data = read_train_data(FLAGS.bsize, n_use_label=n_use_label, n_use_sample=None)
+    valid_data = read_valid_data(FLAGS.bsize)
 
     model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
-                use_label=FLAGS.label, use_supervise=FLAGS.supervise, add_noise=FLAGS.noise,
+                use_label=FLAGS.label, use_supervise=False, add_noise=FLAGS.noise,
                 enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
     model.create_train_model()
 
-    valid_model = AAE(n_code=FLAGS.ncode, use_supervise=FLAGS.supervise, n_class=10)
+    valid_model = AAE(n_code=FLAGS.ncode, use_supervise=False, n_class=10)
     valid_model.create_generate_model(b_size=400)
-    if FLAGS.supervise:
-        valid_model.create_generate_style_model(n_sample=10)
+    # if FLAGS.supervise:
+    #     valid_model.create_generate_style_model(n_sample=10)
 
     trainer = Trainer(model, valid_model, train_data, distr_type=FLAGS.dist_type, use_label=FLAGS.label,
                       init_lr=FLAGS.lr, save_path=SAVE_PATH)
@@ -142,16 +202,15 @@ def train():
         writer.add_graph(sess.graph)
 
         for epoch_id in range(FLAGS.maxepoch):
-            # generator.sample_style(sess, valid_data, plot_size=10, file_id=epoch_id, n_sample=10)
             trainer.train_gan_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
-            trainer.valid_epoch(sess, summary_writer=writer)
+            trainer.valid_epoch(sess, dataflow=valid_data, summary_writer=writer)
             
             if epoch_id % 10 == 0:
                 saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
-                if FLAGS.supervise:
-                    generator.sample_style(sess, valid_data, plot_size=10, file_id=epoch_id, n_sample=10)
-                else:
-                    generator.generate_samples(sess, plot_size=plot_size, file_id=epoch_id)
+                # if FLAGS.supervise:
+                #     generator.sample_style(sess, valid_data, plot_size=10, file_id=epoch_id, n_sample=10)
+                # else:
+                generator.generate_samples(sess, plot_size=plot_size, file_id=epoch_id)
                 if FLAGS.ncode == 2:
                     visualizer.viz_2Dlatent_variable(sess, valid_data, file_id=epoch_id)
         saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
@@ -160,8 +219,18 @@ def generate():
     FLAGS = get_args()
     plot_size = 20
 
+    valid_data = MNISTData('test',
+                            data_dir=DATA_PATH,
+                            shuffle=True,
+                            pf=preprocess_im,
+                            batch_dict_name=['im', 'label'])
+    valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
+
+
     generate_model = AAE(n_code=FLAGS.ncode, use_supervise=FLAGS.supervise, n_class=10)
     generate_model.create_generate_model(b_size=plot_size*plot_size)
+    if FLAGS.supervise:
+        generate_model.create_generate_style_model(n_sample=10)
 
     generator = Generator(generate_model=generate_model, save_path=SAVE_PATH,
                           distr_type=FLAGS.dist_type, n_labels=10, use_label=FLAGS.label)
@@ -172,7 +241,11 @@ def generate():
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, '{}aae-epoch-{}'.format(SAVE_PATH, FLAGS.load))
-        generator.generate_samples(sess, plot_size=plot_size)
+        if FLAGS.supervise:
+            generator.sample_style(sess, valid_data, plot_size=10, n_sample=10)
+        else:
+            generator.generate_samples(sess, plot_size=plot_size)
+        # generator.generate_samples(sess, plot_size=plot_size)
 
 # def sample_style():
 #     FLAGS = get_args()
@@ -277,6 +350,10 @@ if __name__ == '__main__':
 
     if FLAGS.train:
         train()
+    elif FLAGS.train_supervised:
+        supervised_train()
+    elif FLAGS.train_semisupervised:
+        semisupervised_train()
     elif FLAGS.generate:
         generate()
     elif FLAGS.viz:

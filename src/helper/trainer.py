@@ -50,6 +50,7 @@ class Trainer(object):
         self._train_op = train_model.get_train_op()
         self._loss_op = train_model.get_loss()
         self._train_summary_op = train_model.get_train_summary()
+        self._valid_summary_op = train_model.get_valid_summary()
 
         try:
             self._train_d_op = train_model.get_discrimator_train_op()
@@ -60,7 +61,7 @@ class Trainer(object):
             pass
 
         self._generate_op = generate_model.layers['generate']
-        self._valid_summary_op = generate_model.get_valid_summary()
+        self._generate_summary_op = generate_model.get_generate_summary()
 
         self.global_step = 0
         self.epoch_id = 0
@@ -69,9 +70,13 @@ class Trainer(object):
         self._t_model.set_is_training(True)
         display_name_list = ['loss', 'd_loss', 'g_loss']
         cur_summary = None
-        if self.epoch_id == 50:
+        # if self.epoch_id == 50:
+        #     self._lr = self._lr / 10
+        # if self.epoch_id == 200:
+        #     self._lr = self._lr / 10
+        if self.epoch_id == 100:
             self._lr = self._lr / 10
-        if self.epoch_id == 200:
+        if self.epoch_id == 300:
             self._lr = self._lr / 10
 
         cur_epoch = self._train_data.epochs_completed
@@ -205,20 +210,41 @@ class Trainer(object):
                 summary_val=cur_summary,
                 summary_writer=summary_writer)
 
-    def valid_epoch(self, sess, moniter_generation=False, summary_writer=None):
+    def valid_epoch(self, sess, dataflow=None, moniter_generation=False, summary_writer=None):
         # self._g_model.set_is_training(True)
         # display_name_list = ['loss']
         # cur_summary = None
-        # dataflow.setup(epoch_val=0, batch_size=batch_size)
+        dataflow.setup(epoch_val=0, batch_size=dataflow.batch_size)
+        display_name_list = ['loss']
 
         step = 0
-        # while dataflow.epochs_completed == 0:
-        # for i in range(10):
-            # self.global_step += 1
-            # step += 1
-        cur_summary, gen_im = sess.run([self._valid_summary_op, self._generate_op])
-            # break
+        loss_sum = 0
+        while dataflow.epochs_completed == 0:
+            step += 1
 
+            batch_data = dataflow.next_batch_dict()
+            im = batch_data['im']
+            label = batch_data['label']
+            loss, valid_summary = sess.run(
+                [self._loss_op, self._valid_summary_op],
+                feed_dict={self._t_model.encoder_in: im,
+                           self._t_model.image: im,
+                           self._t_model.keep_prob: 1.0,
+                           self._t_model.label: label,
+                           })
+            loss_sum += loss
+
+        print('[Valid]: ', end='')
+        display(self.global_step,
+                step,
+                [loss_sum],
+                display_name_list,
+                'valid',
+                summary_val=None,
+                summary_writer=summary_writer)
+        dataflow.setup(epoch_val=0, batch_size=dataflow.batch_size)
+
+        gen_im = sess.run(self._generate_op)
         if moniter_generation and self._save_path:
             im_save_path = os.path.join(self._save_path,
                                         'generate_step_{}.png'.format(self.global_step))
@@ -226,9 +252,9 @@ class Trainer(object):
                              save_path=im_save_path, gap=0, gap_color=0,
                              shuffle=False)
         if summary_writer:
-            cur_summary = sess.run(self._valid_summary_op)
+            cur_summary = sess.run(self._generate_summary_op)
             summary_writer.add_summary(cur_summary, self.global_step)
-
+            summary_writer.add_summary(valid_summary, self.global_step)
 
         # print('==== epoch: {}, lr:{} ===='.format(cur_epoch, self._lr))
         # display(self.global_step,

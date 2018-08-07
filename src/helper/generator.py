@@ -40,6 +40,7 @@ class Generator(object):
         # for i in range(n_labels):
         #     label.extend([i for k in range(n_sample)])
         # code = np.tile(latent_var, [n_labels, 1]) # [n_class*10, n_code]
+        print(batch_data['label'])
         gen_im = sess.run(self._g_model.layers['generate_style'],
                           feed_dict={
                                      self._g_model.image: batch_data['im'],
