@@ -31,7 +31,23 @@ class AAE(BaseModel):
         self._gen_w = gen_weight
         self._dis_w = dis_weight
         self.layers = {}
-        
+
+    def create_generate_style_model(self, n_sample):
+        self.set_is_training(False)
+        with tf.variable_scope('AE', reuse=tf.AUTO_REUSE):
+            self._create_generate_input()
+            label = []
+            for i in range(self._n_class):
+                label.extend([i for k in range(n_sample)])
+            label = tf.convert_to_tensor(label) # [n_class]
+            one_hot_label = tf.one_hot(label, self._n_class) # [n_class*n_sample, n_class]
+
+            encoder_out = self.encoder(self.image)
+            z, z_mu, z_std, z_log_std = self.sample_latent(encoder_out)
+            z = tf.tile(z, [n_sample, 1]) # [n_class*n_sample, n_code]
+            decoder_in = tf.concat((z, one_hot_label), axis=-1)
+            self.layers['generate_style'] = (self.decoder(decoder_in) + 1. ) / 2.
+
     def create_generate_model(self, b_size):
         self.set_is_training(False)
         with tf.variable_scope('AE', reuse=tf.AUTO_REUSE):
@@ -42,14 +58,16 @@ class AAE(BaseModel):
                 label = []
                 for i in range(self._n_class):
                     label.extend([i for k in range(10)])
-                # label = [i for i in range(self._n_class)]
-                self.label = tf.convert_to_tensor(label) # [n_class]
-                one_hot_label = tf.one_hot(self.label, self._n_class) # [n_class*10, n_class]
-                # one_hot_label = tf.tile(one_hot_label, [10, 1]) # [n_class*10, n_class]
-                # one_hot_label = tf.transpose()
+            #     # label = [i for i in range(self._n_class)]
+                label = tf.convert_to_tensor(label) # [n_class]
+                one_hot_label = tf.one_hot(label, self._n_class) # [n_class*10, n_class]
+            #     # one_hot_label = tf.tile(one_hot_label, [10, 1]) # [n_class*10, n_class]
+            #     # one_hot_label = tf.transpose()
+                # encoder_out = self.encoder(self.image)
+                # z, z_mu, z_std, z_log_std = self.sample_latent(encoder_out)
                 choose_code = decoder_in[:self._n_class] # [n_class, n_code]
-                choose_code = tf.tile(choose_code, [10, 1]) # [n_class*10, n_code]
-                decoder_in = tf.concat((choose_code, one_hot_label), axis=-1)
+                z = tf.tile(choose_code, [10, 1]) # [n_class*10, n_code]
+                decoder_in = tf.concat((z, one_hot_label), axis=-1)
             self.layers['generate'] = (self.decoder(decoder_in) + 1. ) / 2.
             # self.layers['generate'] = tf.nn.sigmoid(self.decoder(self.z))
 
@@ -58,6 +76,44 @@ class AAE(BaseModel):
             tf.float32, name='latent_z',
             shape=[None, self.n_code])
         self.keep_prob = 1.
+        self.image = tf.placeholder(
+            tf.float32, name='image',
+            shape=[None, self._im_size[0], self._im_size[1], self._n_channel])
+
+    def create_semisupervised_train_model(self):
+        self.set_is_training(True)
+        self._create_train_input()
+        with tf.variable_scope('AE', reuse=tf.AUTO_REUSE):
+            encoder_in = self.image
+            if self._flag_noise:
+                encoder_in += tf.random_normal(
+                    tf.shape(encoder_in),
+                    mean=0.0,
+                    stddev=0.6,
+                    dtype=tf.float32)
+            self.encoder_in = encoder_in
+            self.layers['encoder_out'] = self.encoder(self.encoder_in)
+
+            self.layers['z'], self.layers['z_mu'], self.layers['z_std'], self.layers['z_log_std'] =\
+                self.sample_latent(self.layers['encoder_out'])
+            self.layers['cls_logits'] = self.cls_layer(self.layers['encoder_out'])
+
+            decoder_in = tf.concat((self.layers['z'], self.layers['cls_logits']), axis=-1)
+            self.layers['decoder_out'] = self.decoder(decoder_in)
+            self.layers['sample_im'] = (self.layers['decoder_out'] + 1. ) / 2.
+
+        with tf.variable_scope('regularization_D'):
+            fake_in = self.layers['z']
+            real_in = self.real_distribution
+            self.layers['fake'] = self.discriminator(fake_in)
+            self.layers['real'] = self.discriminator(real_in)
+
+        with tf.variable_scope('semisupervised_D'):
+            label_prob = tf.softmax(self.layers['cls_logits'], axis=-1)
+            label_pred = tf.argmax(label_prob, axis=-1)
+            fake_in = 
+            cat_discriminator(self, inputs)
+
 
     def create_train_model(self):
         self.set_is_training(True)
@@ -73,12 +129,12 @@ class AAE(BaseModel):
             self.encoder_in = encoder_in
             self.layers['encoder_out'] = self.encoder(self.encoder_in)
             self.layers['z'], self.layers['z_mu'], self.layers['z_std'], self.layers['z_log_std'] =\
-                self.sample_latent()
+                self.sample_latent(self.layers['encoder_out'])
 
-            decoder_in = self.layers['z']
+            self.decoder_in = self.layers['z']
             if self._flag_supervise:
                 one_hot_label = tf.one_hot(self.label, self._n_class)
-                decoder_in = tf.concat((decoder_in, one_hot_label), axis=-1)
+                decoder_in = tf.concat((self.decoder_in, one_hot_label), axis=-1)
             self.layers['decoder_out'] = self.decoder(decoder_in)
             self.layers['sample_im'] = (self.layers['decoder_out'] + 1. ) / 2.
 
@@ -112,19 +168,25 @@ class AAE(BaseModel):
 
             return fc_out
 
-    def sample_latent(self):
+    def cls_layer(self, encoder_out):
+        cls_logits = L.linear(
+            out_dim=self._n_class, layer_dict=self.layers,
+            inputs=encoder_out, init_w=INIT_W, wd=self._wd, name='cls_logits')
+        return cls_logits
+
+    def sample_latent(self, encoder_out):
         with tf.variable_scope('sample_latent'):
-            cnn_out = self.layers['encoder_out']
+            encoder_out = encoder_out
             
             z_mean = L.linear(
                 out_dim=self.n_code, layer_dict=self.layers,
-                inputs=cnn_out, init_w=INIT_W, wd=self._wd, name='latent_mean')
+                inputs=encoder_out, init_w=INIT_W, wd=self._wd, name='latent_mean')
             z_std = L.linear(
                 out_dim=self.n_code, layer_dict=self.layers, nl=L.softplus,
-                inputs=cnn_out, init_w=INIT_W, wd=self._wd, name='latent_std')
+                inputs=encoder_out, init_w=INIT_W, wd=self._wd, name='latent_std')
             z_log_std = tf.log(z_std + 1e-8)
 
-            b_size = tf.shape(cnn_out)[0]
+            b_size = tf.shape(encoder_out)[0]
             z = ops.tf_sample_diag_guassian(z_mean, z_std, b_size, self.n_code)
             return z, z_mean, z_std, z_log_std
 
@@ -146,6 +208,14 @@ class AAE(BaseModel):
             fc_out = modules.discriminator_FC(inputs, self.is_training,
                                               nl=L.leaky_relu,
                                               wd=self._wd, name='discriminator_FC',
+                                              init_w=INIT_W)
+            return fc_out
+
+    def cat_discriminator(self, inputs):
+        with tf.variable_scope('cat_discriminator', reuse=tf.AUTO_REUSE):
+            fc_out = modules.discriminator_FC(inputs, self.is_training,
+                                              nl=L.leaky_relu,
+                                              wd=self._wd, name='cat_discriminator_FC',
                                               init_w=INIT_W)
             return fc_out
 

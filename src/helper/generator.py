@@ -26,6 +26,43 @@ class Generator(object):
         if self._use_label:
             assert self._n_labels is not None
 
+    def sample_style(self, sess, dataflow, plot_size, n_sample=10, file_id=None):
+        epochs_completed, batch_size = dataflow.epochs_completed, dataflow.batch_size 
+        dataflow.setup(epoch_val=0, batch_size=n_sample)
+
+        batch_data = dataflow.next_batch_dict()
+        # latent_var = sess.run(
+        #     self._latent_op, 
+        #     feed_dict={self._g_model.encoder_in: batch_data['im'],
+        #                self._g_model.keep_prob: 1.})
+
+        # label = []
+        # for i in range(n_labels):
+        #     label.extend([i for k in range(n_sample)])
+        # code = np.tile(latent_var, [n_labels, 1]) # [n_class*10, n_code]
+        gen_im = sess.run(self._g_model.layers['generate_style'],
+                          feed_dict={
+                                     self._g_model.image: batch_data['im'],
+                                     # self._g_model.label: label,
+                                     # self._g_model.keep_prob: 1.
+                                     })
+
+        if self._save_path:
+            if file_id is not None:
+                im_save_path = os.path.join(
+                    self._save_path, 'sample_style_{}.png'.format(file_id))
+            else:
+                im_save_path = os.path.join(
+                    self._save_path, 'sample_style.png')
+
+            n_sample = len(gen_im)
+            plot_size = int(min(plot_size, math.sqrt(n_sample)))
+            viz.viz_batch_im(batch_im=gen_im, grid_size=[plot_size, plot_size],
+                             save_path=im_save_path, gap=0, gap_color=0,
+                             shuffle=False)
+
+        dataflow.setup(epoch_val=epochs_completed, batch_size=batch_size)
+
     def generate_samples(self, sess, plot_size, manifold=False, file_id=None):
         # if z is None:
         #     gen_im = sess.run(self._generate_op)
