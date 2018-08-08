@@ -92,7 +92,7 @@ def decoder_CNN(inputs, is_training, out_channel=1, wd=0, bn=False, name='decode
 
             return layer_dict['cur_input']
 
-def train_discrimator(fake_in, real_in, loss_weight, lr, var_list, name):
+def train_discrimator(fake_in, real_in, loss_weight, opt, var_list, name):
     with tf.name_scope(name):
         with tf.name_scope('discrimator_loss'):
             loss_real = tf.nn.sigmoid_cross_entropy_with_logits(
@@ -101,11 +101,11 @@ def train_discrimator(fake_in, real_in, loss_weight, lr, var_list, name):
                 name='loss_real')
             loss_fake = tf.nn.sigmoid_cross_entropy_with_logits(
                 labels=tf.zeros_like(fake_in),
-                logits=fake_in
+                logits=fake_in,
                 name='loss_fake')
             d_loss = tf.reduce_mean(loss_real) + tf.reduce_mean(loss_fake)
                 
-            opt = tf.train.AdamOptimizer(lr, beta1=0.5)
+            # opt = tf.train.AdamOptimizer(lr, beta1=0.5)
             # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
             # dc_var = [var for var in all_variables if 'dc_' in var.name]
             # var_list = tf.trainable_variables(scope='discriminator')
@@ -118,7 +118,7 @@ def train_discrimator(fake_in, real_in, loss_weight, lr, var_list, name):
 
         return d_loss, train_op
 
-def train_generator(fake_in, loss_weight, lr, var_list, name):
+def train_generator(fake_in, loss_weight, opt, var_list, name):
      with tf.name_scope(name):
         with tf.name_scope('generator_loss'):
             loss_fake = tf.nn.sigmoid_cross_entropy_with_logits(
@@ -126,12 +126,25 @@ def train_generator(fake_in, loss_weight, lr, var_list, name):
                 logits=fake_in,
                 name='loss_fake')
             g_loss = tf.reduce_mean(loss_fake)
-        opt = tf.train.AdamOptimizer(lr, beta1=0.5)
-        # opt = tf.train.MomentumOptimizer(self.lr, momentum=0.1)
-        # var_list = tf.trainable_variables(scope=['AE/encoder'])
-        # var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/encoder') +\
-        #                tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/sample_latent')
+        # opt = tf.train.AdamOptimizer(lr, beta1=0.5)
         print(var_list)
-        grads = tf.gradients(self.gan_loss * loss_weight, var_list)
-        return opt.apply_gradients(zip(grads, var_list))
+        grads = tf.gradients(g_loss * loss_weight, var_list)
+        train_op = opt.apply_gradients(zip(grads, var_list))
+
+        return g_loss, train_op
+
+def train_by_cross_entropy_loss(logits, labels, loss_weight, opt, var_list, name):
+    with tf.name_scope(name):
+        with tf.name_scope('cross_entropy_loss'):
+            cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels=labels,
+                logits=logits,
+                name='cross_entropy')
+            cross_entropy = tf.reduce_mean(cross_entropy)
+        # opt = tf.train.AdamOptimizer(lr, beta1=0.5)
+        # print(var_list)
+        grads = tf.gradients(cross_entropy * loss_weight, var_list)
+        train_op = opt.apply_gradients(zip(grads, var_list))
+
+        return cross_entropy, train_op
 

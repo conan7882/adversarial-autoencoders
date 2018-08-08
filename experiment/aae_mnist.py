@@ -14,7 +14,6 @@ import argparse
 
 sys.path.append('../')
 from src.dataflow.mnist import MNISTData
-from src.models.vae import VAE
 from src.models.aae import AAE
 from src.helper.trainer import Trainer
 from src.helper.generator import Generator
@@ -80,6 +79,13 @@ def get_args():
     parser.add_argument('--disw', type=float, default=6.,
                         help='weight of discriminator loss')
 
+    parser.add_argument('--clsw', type=float, default=1.,
+                        help='weight of semisupervised loss')
+    parser.add_argument('--ygenw', type=float, default=6.,
+                        help='weight of y generator loss')
+    parser.add_argument('--ydisw', type=float, default=6.,
+                        help='weight of y discriminator loss')
+
     parser.add_argument('--dist_type', type=str, default='gaussian',
                         help='prior')
     
@@ -118,13 +124,32 @@ def read_valid_data(batch_size):
 def semisupervised_train():
     FLAGS = get_args()
 
-    train_data = read_train_data(FLAGS.bsize)
+    train_data_unlabel = read_train_data(FLAGS.bsize)
+    train_data_label = read_train_data(FLAGS.bsize, n_use_sample=1000)
+    train_data = {'unlabeled': train_data_unlabel, 'labeled': train_data_label}
     valid_data = read_valid_data(FLAGS.bsize)
 
-    model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
+    train_model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
                 use_label=False, use_supervise=False, add_noise=FLAGS.noise,
-                enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
-    model.create_semisupervised_train_model()
+                enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw,
+                cat_dis_weight=FLAGS.ydisw, cat_gen_weight=FLAGS.ygenw, cls_weight=FLAGS.clsw)
+    train_model.create_semisupervised_train_model()
+
+    cls_valid_model = AAE(n_code=FLAGS.ncode, n_class=10)
+    cls_valid_model.create_semisupervised_test_model()
+
+    trainer = Trainer(train_model, cls_valid_model=cls_valid_model, generate_model=None,
+                      train_data=train_data,
+                      init_lr=FLAGS.lr, save_path=SAVE_PATH)
+
+    sessconfig = tf.ConfigProto()
+    sessconfig.gpu_options.allow_growth = True
+    with tf.Session(config=sessconfig) as sess:
+        writer = tf.summary.FileWriter(SAVE_PATH)
+        sess.run(tf.global_variables_initializer())
+        trainer.train_semisupervised_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
+        trainer.valid_semisupervised_epoch(sess, valid_data, summary_writer=writer)
+    
 
 def supervised_train():
     FLAGS = get_args()
