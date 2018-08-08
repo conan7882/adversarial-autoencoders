@@ -125,7 +125,7 @@ def semisupervised_train():
     FLAGS = get_args()
 
     train_data_unlabel = read_train_data(FLAGS.bsize)
-    train_data_label = read_train_data(FLAGS.bsize, n_use_sample=1000)
+    train_data_label = read_train_data(FLAGS.bsize, n_use_sample=128)
     train_data = {'unlabeled': train_data_unlabel, 'labeled': train_data_label}
     valid_data = read_valid_data(FLAGS.bsize)
 
@@ -147,8 +147,10 @@ def semisupervised_train():
     with tf.Session(config=sessconfig) as sess:
         writer = tf.summary.FileWriter(SAVE_PATH)
         sess.run(tf.global_variables_initializer())
-        trainer.train_semisupervised_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
-        trainer.valid_semisupervised_epoch(sess, valid_data, summary_writer=writer)
+        writer.add_graph(sess.graph)
+        for epoch_id in range(FLAGS.maxepoch):
+            trainer.train_semisupervised_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
+            trainer.valid_semisupervised_epoch(sess, valid_data, summary_writer=writer)
     
 
 def supervised_train():

@@ -71,6 +71,7 @@ class Trainer(object):
         try:
             self._cls_train_op = train_model.get_semisupervised_train_op()
             self._cls_loss_op = train_model.cls_loss
+            self._cls_accuracy_op = train_model.get_cls_accuracy()
         except AttributeError:
             pass
 
@@ -82,32 +83,35 @@ class Trainer(object):
         if cls_valid_model is not None:
             self._cls_v_model = cls_valid_model
             self._cls_valid_loss_op = cls_valid_model.cls_loss
+            self._cls_v_accuracy_op = cls_valid_model.get_cls_accuracy()
 
         self.global_step = 0
         self.epoch_id = 0
 
     def valid_semisupervised_epoch(self, sess, dataflow, summary_writer=None):
         dataflow.setup(epoch_val=0, batch_size=dataflow.batch_size)
-        display_name_list = ['cls_loss']
+        display_name_list = ['cls_loss', 'cls_accuracy']
         cur_summary = None
         step = 0
         cls_loss_sum = 0
+        cls_accuracy_sum = 0
         while dataflow.epochs_completed < 1:
             step += 1
             batch_data = dataflow.next_batch_dict()
             im = batch_data['im']
             label = batch_data['label']
 
-            cls_loss = sess.run(
-                self._cls_valid_loss_op, 
+            cls_loss, cls_accuracy = sess.run(
+                [self._cls_valid_loss_op, self._cls_v_accuracy_op],
                 feed_dict={self._cls_v_model.image: im,
                            self._cls_v_model.label: label})
             cls_loss_sum += cls_loss
+            cls_accuracy_sum += cls_accuracy
 
         print('[Valid]: ', end='')
         display(self.global_step,
                 step,
-                [cls_loss_sum],
+                [cls_loss_sum, cls_accuracy_sum],
                 display_name_list,
                 'valid',
                 summary_val=cur_summary,
@@ -117,9 +121,15 @@ class Trainer(object):
     def train_semisupervised_epoch(self, sess, ae_dropout=1.0, summary_writer=None):
         label_data = self._train_data['labeled']
         unlabel_data = self._train_data['unlabeled']
-        display_name_list = ['loss', 'z_d_loss', 'z_g_loss', 'y_d_loss', 'y_g_loss', 'cls_loss']
+        display_name_list = ['loss', 'z_d_loss', 'z_g_loss', 'y_d_loss', 'y_g_loss',
+                             'cls_loss', 'cls_accuracy']
         cur_summary = None
         cur_epoch = unlabel_data.epochs_completed
+
+        if self.epoch_id == 50:
+            self._lr = self._lr / 10
+        if self.epoch_id == 150:
+            self._lr = self._lr / 10
 
         step = 0
         loss_sum = 0
@@ -128,6 +138,7 @@ class Trainer(object):
         y_d_loss_sum = 0
         y_g_loss_sum = 0
         cls_loss_sum = 0
+        cls_accuracy_sum = 0
         while cur_epoch == unlabel_data.epochs_completed:
             self.global_step += 1
             step += 1
@@ -141,9 +152,10 @@ class Trainer(object):
 
             y_real_sample = np.random.choice(self._t_model.n_class, len(im))
             # a = np.array([1, 0, len(im)])
-            b = np.zeros((len(im), self._t_model.n_class))
-            b[np.arange(len(im)), y_real_sample] = 1
-            y_real_sample = b
+            # b = np.zeros((len(im), self._t_model.n_class))
+            # b[np.arange(len(im)), y_real_sample] = 1
+            # y_real_sample = b
+            # print(y_real_sample)
 
             # train autoencoder
             _, loss, cur_summary = sess.run(
@@ -152,7 +164,8 @@ class Trainer(object):
                            self._t_model.lr: self._lr,
                            self._t_model.keep_prob: ae_dropout,
                            self._t_model.label: label,
-                           self._t_model.real_distribution: z_real_sample})
+                           self._t_model.real_distribution: z_real_sample,
+                           self._t_model.real_y: y_real_sample})
 
             # z discriminator
             _, z_d_loss = sess.run(
@@ -192,12 +205,15 @@ class Trainer(object):
             im = batch_data['im']
             label = batch_data['label']
             # semisupervise
-            _, cls_loss = sess.run(
-                [self._cls_train_op, self._cls_loss_op], 
-                feed_dict={self._t_model.image: im,
-                           self._t_model.label: label,
-                           self._t_model.lr: self._lr,
-                           self._t_model.keep_prob: 1.})
+            if self.global_step % 10 == 0:
+                _, cls_loss, cls_accuracy = sess.run(
+                    [self._cls_train_op, self._cls_loss_op, self._cls_accuracy_op], 
+                    feed_dict={self._t_model.image: im,
+                               self._t_model.label: label,
+                               self._t_model.lr: self._lr,
+                               self._t_model.keep_prob: 1.})
+                cls_loss_sum += cls_loss
+                cls_accuracy_sum += cls_accuracy
             
 
             loss_sum += loss
@@ -205,16 +221,26 @@ class Trainer(object):
             z_g_loss_sum += z_g_loss
             y_d_loss_sum += y_d_loss
             y_g_loss_sum += y_g_loss
-            cls_loss_sum += cls_loss
-
+            
+            
             if step % 100 == 0:
                 display(self.global_step,
                     step,
-                    [loss_sum, z_d_loss_sum, z_g_loss_sum, y_d_loss_sum, y_g_loss_sum, cls_loss_sum],
+                    [loss_sum, z_d_loss_sum, z_g_loss_sum, y_d_loss_sum, y_g_loss_sum,
+                     cls_loss_sum * 10, cls_accuracy_sum * 10],
                     display_name_list,
                     'train',
                     summary_val=cur_summary,
                     summary_writer=summary_writer)
+
+        print('==== epoch: {}, lr:{} ===='.format(cur_epoch, self._lr))
+        display(self.global_step,
+                step,
+                [loss_sum, z_d_loss_sum, z_g_loss_sum, y_d_loss_sum, y_g_loss_sum],
+                display_name_list,
+                'train',
+                summary_val=cur_summary,
+                summary_writer=summary_writer)
 
 
     def train_gan_epoch(self, sess, ae_dropout=1.0, summary_writer=None):

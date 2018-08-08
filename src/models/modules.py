@@ -110,7 +110,7 @@ def train_discrimator(fake_in, real_in, loss_weight, opt, var_list, name):
             # dc_var = [var for var in all_variables if 'dc_' in var.name]
             # var_list = tf.trainable_variables(scope='discriminator')
             # print(tf.trainable_variables())
-            print(var_list)
+            # print(var_list)
             grads = tf.gradients(d_loss * loss_weight, var_list)
             # [tf.summary.histogram('gradient/' + var.name, grad, 
             #  collections=['train']) for grad, var in zip(grads, var_list)]
@@ -127,7 +127,7 @@ def train_generator(fake_in, loss_weight, opt, var_list, name):
                 name='loss_fake')
             g_loss = tf.reduce_mean(loss_fake)
         # opt = tf.train.AdamOptimizer(lr, beta1=0.5)
-        print(var_list)
+        # print(var_list)
         grads = tf.gradients(g_loss * loss_weight, var_list)
         train_op = opt.apply_gradients(zip(grads, var_list))
 

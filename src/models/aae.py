@@ -86,7 +86,7 @@ class AAE(BaseModel):
 
     def _create_cls_input(self):
         self.keep_prob = 1.
-        self.label = tf.placeholder(tf.int32, name='label', shape=[None])
+        self.label = tf.placeholder(tf.int64, name='label', shape=[None])
         self.image = tf.placeholder(
             tf.float32, name='image',
             shape=[None, self._im_size[0], self._im_size[1], self._n_channel])
@@ -100,6 +100,8 @@ class AAE(BaseModel):
             self.layers['encoder_out'] = self.encoder(self.encoder_in)
             # discrete class variable
             self.layers['cls_logits'] = self.cls_layer(self.layers['encoder_out'])
+            self.layers['y'] = tf.argmax(self.layers['cls_logits'], axis=-1,
+                                         name='label_predict')
         # create cls_loss node for validation
         self.lr = 1
         self.get_semisupervised_train_op()
@@ -126,12 +128,12 @@ class AAE(BaseModel):
             # self.layers['y'] = tf.multinomial(self.layers['cls_logits'], num_samples=1,
             #                                   name='sample_y')
 
-            # self.layers['y'] = tf.argmax(self.layers['cls_logits'], axis=-1,
-            #                              name='sample_y')
-            one_hot_y_approx = tf.nn.softmax(self.layers['cls_logits'], axis=-1)
+            self.layers['y'] = tf.argmax(self.layers['cls_logits'], axis=-1,
+                                         name='label_predict')
+            self.layers['one_hot_y_approx'] = tf.nn.softmax(self.layers['cls_logits'], axis=-1)
             # one_hot_y = self.layers['cls_logits'] 
 
-            decoder_in = tf.concat((self.layers['z'], one_hot_y_approx), axis=-1)
+            decoder_in = tf.concat((self.layers['z'], self.layers['one_hot_y_approx']), axis=-1)
             self.layers['decoder_out'] = self.decoder(decoder_in)
             self.layers['sample_im'] = (self.layers['decoder_out'] + 1. ) / 2.
 
@@ -142,8 +144,8 @@ class AAE(BaseModel):
             self.layers['real_z'] = self.discriminator(real_in)
 
         with tf.variable_scope('regularization_y'):
-            fake_in = one_hot_y_approx
-            real_in = self.real_y
+            fake_in = self.layers['one_hot_y_approx']
+            real_in = tf.one_hot(self.real_y, self.n_class)
             self.layers['fake_y'] = self.cat_discriminator(fake_in)
             self.layers['real_y'] = self.cat_discriminator(real_in)
 
@@ -181,11 +183,11 @@ class AAE(BaseModel):
             tf.float32, name='image',
             shape=[None, self._im_size[0], self._im_size[1], self._n_channel])
         self.label = tf.placeholder(
-            tf.int32, name='label', shape=[None])
+            tf.int64, name='label', shape=[None])
         self.real_distribution = tf.placeholder(
             tf.float32, name='real_distribution', shape=[None, self.n_code])
         self.real_y = tf.placeholder(
-            tf.float32, name='real_y', shape=[None, self.n_class])
+            tf.int64, name='real_y', shape=[None])
         self.lr = tf.placeholder(tf.float32, name='lr')
         self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
@@ -395,6 +397,13 @@ class AAE(BaseModel):
         #     #  collections=['train']) for grad, var in zip(grads, var_list)]
         #     return opt.apply_gradients(zip(grads, var_list))
 
+    def get_cls_accuracy(self):
+        with tf.name_scope('cls_accuracy'):
+            labels = self.label
+            cls_predict = self.layers['y']
+            num_correct = tf.cast(tf.equal(labels, cls_predict), tf.float32)
+            return tf.reduce_mean(num_correct)
+
     def get_generate_summary(self):
         with tf.name_scope('generate'):
             tf.summary.image(
@@ -429,13 +438,22 @@ class AAE(BaseModel):
                 'decoder output',
                 tf.cast(self.layers['sample_im'], tf.float32),
                 collections=['train'])
-            tf.summary.histogram(
-                name='real distribution', values=self.real_distribution,
-                collections=['train'])
-            tf.summary.histogram(
-                name='encoder distribution', values=self.layers['z'],
-                collections=['train'])
 
+            tf.summary.histogram(
+                name='z real distribution', values=self.real_distribution,
+                collections=['train'])
+            tf.summary.histogram(
+                name='z encoder distribution', values=self.layers['z'],
+                collections=['train'])
+            try:
+                tf.summary.histogram(
+                    name='y real distribution', values=self.real_y,
+                    collections=['train'])
+                tf.summary.histogram(
+                    name='y encoder distribution', values=self.layers['y'],
+                    collections=['train'])
+            except AttributeError:
+                pass
         # var_list = tf.trainable_variables()
         # [tf.summary.histogram('gradient/' + var.name, grad, 
         #  collections=['train']) for grad, var in zip(grads, var_list)]
