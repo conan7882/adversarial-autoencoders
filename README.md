@@ -43,3 +43,15 @@ Option | ``--bsize``
 *Code Dim=2* | *Code Dim=10* | *Code Dim=2*
 :---: | :---: | :---: |
 <img src = 'figs/supervise_code2.png' height = '230px'>| <img src = 'figs/supervise_code10.png' height = '230px'>| <img src = 'figs/supervise_code2.png' height = '230px'>
+
+### Semi-supervised learning
+*name* | *value* |
+:---| :---|
+Dimention of z | 10 |
+Batch Size | 128 |
+Max Epoch | 400 |
+Learning Rate | 1e-4 initial / 1e-5 after 50 epochs / 1e-6 after 150 epochs
+Reconstruction Loss Weight | 1.0 |
+Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
+Letant y Generator and Discriminator Loss Weight | 6.0 / 6.0 |
+
