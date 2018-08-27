@@ -77,8 +77,6 @@ Option | ``--bsize``
 --->
 
 
-
-
 ### Hyperparameters
 *name* | *value* |
 :---| :---|
@@ -90,15 +88,18 @@ Reconstruction Loss Weight | 1.0 |
 Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 
 ### Result
+- For 2D Gaussian, we can see sharp transitions (no gaps) as mentioned in the paper. Also, from the learned manifold, we can see almost all the sampled images are readable.
+- For mixture of 10 Gaussian, I just uniformly sample images in a 2D square space as I did for 2D Gaussian instead of sampling along the axes of the corresponding mixture component, which will be shown in the next section. We can see in the gap area between two component, it is less likely to generate good samples.  
+
 *Prior Distribution* | *Learned Coding Space* | *Learned Manifold*
 :---: | :---: | :---: |
 <img src = 'figs/gaussian.png' height = '230px'> | <img src = 'figs/gaussian_latent.png' height = '230px'> | <img src = 'figs/gaussian_manifold.png' height = '230px'>
 <img src = 'figs/gmm.png' height = '230px'> | <img src = 'figs/gmm_latent.png' height = '230px'> | <img src = 'figs/gmm_manifold.png' height = '230px'>
 
-### Incorporating label in the Adversarial Regularization
+## Incorporating label in the Adversarial Regularization
 
 ### Architecture
-*Prior Distribution* | *Description*
+*Architecture* | *Description*
 :---: | :--- |
 <img src = 'figs/s_2.png' width = '1500px'> | The only difference from previous model is that the one-hot label is used as input of encoder and there is one extra class for unlabeled data. For mixture of Gaussian prior, real samples are drawn from each components for each labeled class and for unlabeled data, real samples are drawn from the mixture distribution.
 
@@ -106,32 +107,57 @@ Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 Hyperparameters are the same as previous section.
 
 ### Usage
- Training. Summary, randomly sampled images and latent space will be saved in `SAVE_PATH`.
+- Training. Summary, randomly sampled images and latent space will be saved in `SAVE_PATH`.
 
  ```
  python aae_mnist.py --train --label --dist_type <TYPE_OF_PRIOR>
  ```
  
- Random sample data from trained model. Image will be saved in `SAVE_PATH` with name `generate_im.png`.
+- Random sample data from trained model. Image will be saved in `SAVE_PATH` with name `generate_im.png`.
  ```
  python aae_mnist.py --generate --label --dist_type <TYPE_OF_PRIOR> --load <RESTORE_MODEL_ID>
  ```
-  Visualize latent space and data manifold (only when code dim = 2). Image will be saved in `SAVE_PATH` with name `generate_im.png` and `latent.png`. For Gaussian distribution, there will be one image for data manifold. For mixture of 10 2D Gaussian, there will be 10 images of data manifold for each component of the distribution.
+ 
+- Visualize latent space and data manifold (only when code dim = 2). Image will be saved in `SAVE_PATH` with name `generate_im.png` and `latent.png`. For Gaussian distribution, there will be one image for data manifold. For mixture of 10 2D Gaussian, there will be 10 images of data manifold for each component of the distribution.
  ```
  python aae_mnist.py --viz --label --dist_type <TYPE_OF_PRIOR> --load <RESTORE_MODEL_ID>
  ```
- 
+ ### Result
+ - Compare with the result in the previous section, incorporating labeling information provides better fitted distribution for codes.
+ - The learned manifold images demostrate that each Gaussian component corresponds to the one class of digit. However, the style representation is not consistently represented within each mixture component as shown in the paper. For example, the right most column of the first row experiment, the lower right of digit 1 tilt to left while the lower right of digit 9 tilt to right.
+
 *Number of Label Used* | *Learned Coding Space* | *Learned Manifold*
 :--- | :---: | :---: |
 **Use full label**| <img src = 'figs/gmm_full_label.png' width = '350px'> | <img src = 'figs/gmm_full_label_2.png' height = '150px'> <img src = 'figs/gmm_full_label_1.png' height = '150px'><img src = 'figs/gmm_full_label_0.png' height = '150px'> <img src = 'figs/gmm_full_label_9.png' height = '150px'>
 **10k labeled data and 40k unlabeled data** | <img src = 'figs/gmm_10k_label.png' width = '350px'> | <img src = 'figs/gmm_10k_label_2.png' height = '150px'> <img src = 'figs/gmm_10k_label_1.png' height = '150px'><img src = 'figs/gmm_10k_label_0.png' height = '150px'> <img src = 'figs/gmm_10k_label_9.png' height = '150px'>
 
 ### Supervised Adversarial Autoencoders
-*Code Dim=2* | *Code Dim=10* | *Code Dim=2*
-:---: | :---: | :---: |
-<img src = 'figs/supervise_code2.png' height = '230px'>| <img src = 'figs/supervise_code10.png' height = '230px'>| <img src = 'figs/supervise_code2.png' height = '230px'>
+
+### Architecture
+*Architecture* | *Description*
+:---: | :--- |
+<img src = 'figs/s_3.png' width = '1000px'> | The decoder takes code as well as a one-hot vector encoding the label as input. Then it forces the network learn the code independent of the label.
+
+### Hyperparameters
+
+### Usage
+
+### Result
+- The result images are generated by using the same code for each column and the same digit label for each row.
+- When code dimension is 2, we can see each column consists the same style clearly. But for dimension 10, we can hardly read some digits. Maybe there are some issues of implementation or the hyper-parameters are not properly picked, which makes the code still depend on the label. 
+
+*Code Dim=2* | *Code Dim=10* | 
+:---: | :---: | 
+<img src = 'figs/supervise_code2.png' height = '230px'>| <img src = 'figs/supervise_code10.png' height = '230px'>| 
 
 ### Semi-supervised learning
+
+### Architecture
+*Architecture* | *Description*
+:---: | :--- |
+<img src = 'figs/s_4.png' width = '1000px'> | 
+
+### Hyperparameters
 *name* | *value* |
 :---| :---|
 Dimention of z | 10 |
@@ -141,4 +167,5 @@ Learning Rate | 1e-4 initial / 1e-5 after 50 epochs / 1e-6 after 150 epochs
 Reconstruction Loss Weight | 1.0 |
 Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 Letant y Generator and Discriminator Loss Weight | 6.0 / 6.0 |
+
 
