@@ -15,6 +15,7 @@
 - Examples of how to use AAE models can be found in [experiment/aae_mnist.py](experiment/aae_mnist.py).
 - Encoder, decoder and all discriminators contain two fully connected layers with 1000 hidden units and RelU activation function. Decoder and all discriminators contain an additional fully connected layer for output.
 - Images are normlized to [-1, 1] before fed into the encoder and tanh is used as the output nonlineary of decoder.
+- All the sub-networks are optimized by Adam optimizer with `beta1 = 0.5`.
 
 ## Preparation
 - Download the MNIST dataset from [here](http://yann.lecun.com/exdb/mnist/).
