@@ -45,13 +45,21 @@ The script [experiment/aae_mnist.py](experiment/aae_mnist.py) contains all the e
 * `--lr`:
 * `--dropout`:
 
-## 1.Adversarial Autoencoder
+## 1. Adversarial Autoencoder
 
 ### Architecture
 *Architecture* | *Description*
 :---: | :--- |
 <img src = 'figs/s_1.png' width = '1500px'> | The top row is an autoencoder. z is sampled through the reparameterization trick discussed in [variational autoencoder paper](https://arxiv.org/abs/1312.6114). The bottom row is a discriminator to separate samples generate from the encoder and samples from the prior distribution p(z).
 
+### Hyperparameters
+*name* | *value* |
+:---| :---|
+Reconstruction Loss Weight | 1.0 |
+Letant z G/D Loss Weight | 6.0 / 6.0 |
+Batch Size | 128 |
+Max Epoch | 400 |
+Learning Rate | 2e-4 (initial) / 2e-5 (100 epochs) / 2e-6 (300 epochs)
 
 ### Usage
 
@@ -78,17 +86,6 @@ Visualize latent space and data manifold (only when code dim = 2) |``python aae_
 Option | ``--bsize``
 --->
 
-
-### Hyperparameters
-*name* | *value* |
-:---| :---|
-Dimention of z | 2 |
-Batch Size | 128 |
-Max Epoch | 400 |
-Learning Rate | 2e-4 initial / 2e-5 after 100 epochs / 2e-6 after 300 epochs
-Reconstruction Loss Weight | 1.0 |
-Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
-
 ### Result
 - For 2D Gaussian, we can see sharp transitions (no gaps) as mentioned in the paper. Also, from the learned manifold, we can see almost all the sampled images are readable.
 - For mixture of 10 Gaussian, I just uniformly sample images in a 2D square space as I did for 2D Gaussian instead of sampling along the axes of the corresponding mixture component, which will be shown in the next section. We can see in the gap area between two component, it is less likely to generate good samples.  
@@ -98,7 +95,7 @@ Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 <img src = 'figs/gaussian.png' height = '230px'> | <img src = 'figs/gaussian_latent.png' height = '230px'> | <img src = 'figs/gaussian_manifold.png' height = '230px'>
 <img src = 'figs/gmm.png' height = '230px'> | <img src = 'figs/gmm_latent.png' height = '230px'> | <img src = 'figs/gmm_manifold.png' height = '230px'>
 
-## 2.Incorporating label in the Adversarial Regularization
+## 2. Incorporating label in the Adversarial Regularization
 
 ### Architecture
 *Architecture* | *Description*
@@ -133,12 +130,12 @@ Hyperparameters are the same as previous section.
 **Use full label**| <img src = 'figs/gmm_full_label.png' width = '350px'> | <img src = 'figs/gmm_full_label_2.png' height = '150px'> <img src = 'figs/gmm_full_label_1.png' height = '150px'><img src = 'figs/gmm_full_label_0.png' height = '150px'> <img src = 'figs/gmm_full_label_9.png' height = '150px'>
 **10k labeled data and 40k unlabeled data** | <img src = 'figs/gmm_10k_label.png' width = '350px'> | <img src = 'figs/gmm_10k_label_2.png' height = '150px'> <img src = 'figs/gmm_10k_label_1.png' height = '150px'><img src = 'figs/gmm_10k_label_0.png' height = '150px'> <img src = 'figs/gmm_10k_label_9.png' height = '150px'>
 
-### 3.Supervised Adversarial Autoencoders
+### 3. Supervised Adversarial Autoencoders
 
 ### Architecture
 *Architecture* | *Description*
 :---: | :--- |
-<img src = 'figs/s_3.png' width = '1000px'> | The decoder takes code as well as a one-hot vector encoding the label as input. Then it forces the network learn the code independent of the label.
+<img src = 'figs/s_3.png' width = '800px'> | The decoder takes code as well as a one-hot vector encoding the label as input. Then it forces the network learn the code independent of the label.
 
 ### Hyperparameters
 
@@ -160,24 +157,41 @@ Hyperparameters are the same as previous section.
 
 *Code Dim=2* | *Code Dim=10* | 
 :---: | :---: | 
-<img src = 'figs/supervise_code2.png' height = '230px'>| <img src = 'figs/supervise_code10.png' height = '230px'>| 
+<img src = 'figs/supervise_code2.png' height = '230px'>| <img src = 'figs/supervise_code10.png' height = '230px'>|
 
-### 4.Semi-supervised learning
+### 4. Semi-supervised learning
 
 ### Architecture
 *Architecture* | *Description*
 :---: | :--- |
-<img src = 'figs/s_4.png' width = '1000px'> | 
+<img src = 'figs/s_4.png' width = '1500px'> |  The encoder outputs code z as well as the estimated label y. Encoder again takes code z and one-hot label y as input. A Gaussian distribution is imposed on code z and a Categorical distribution is imposed on label y. In this implementation, the autoencoder is trained by semi-supervised classification phase every ten training steps when using 1000 label images and the one-hot label y is approximated by output of softmax.
 
 ### Hyperparameters
 *name* | *value* |
 :---| :---|
 Dimention of z | 10 |
+Reconstruction Loss Weight | 1.0 |
+Letant z G/D Loss Weight | 6.0 / 6.0 |
+Letant y G/D Loss Weight | 6.0 / 6.0 |
 Batch Size | 128 |
 Max Epoch | 250 |
-Learning Rate | 1e-4 initial / 1e-5 after 150 epochs / 1e-6 after 200 epochs
-Reconstruction Loss Weight | 1.0 |
-Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
-Letant y Generator and Discriminator Loss Weight | 6.0 / 6.0 |
+Learning Rate | 1e-4 (initial) / 1e-5 (150 epochs) / 1e-6 (200 epochs)
+
+### Usage
+- Training. Summary will be saved in `SAVE_PATH`.
+
+ ```
+ python aae_mnist.py --ncode 10 --train_semisupervised --lr 2e-4 --maxepoch 250
+ ```
+
+### Result
+- 1028 labels are used (around 100 labeled images per class)
+
+learning curve for training set
+![train](figs/semi_train.png)
+
+learning curve for testing set
+- The accuracy on testing set is 97.10% around 200 epochs. 
+![valid](figs/semi_valid.png)
 
 
