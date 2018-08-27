@@ -82,7 +82,7 @@ class Trainer(object):
 
         if cls_valid_model is not None:
             self._cls_v_model = cls_valid_model
-            self._cls_valid_loss_op = cls_valid_model.cls_loss
+            self._cls_valid_loss_op = cls_valid_model.get_cls_loss()
             self._cls_v_accuracy_op = cls_valid_model.get_cls_accuracy()
 
         self.global_step = 0

@@ -305,10 +305,12 @@ def generate():
                             batch_dict_name=['im', 'label'])
     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
 
-    generate_model = AAE(n_code=FLAGS.ncode, use_supervise=FLAGS.supervise, n_class=10)
-    generate_model.create_generate_model(b_size=plot_size*plot_size)
+    generate_model = AAE(n_code=FLAGS.ncode, n_class=10)
+    
     if FLAGS.supervise:
         generate_model.create_generate_style_model(n_sample=10)
+    else:
+        generate_model.create_generate_model(b_size=plot_size*plot_size)
 
     generator = Generator(generate_model=generate_model, save_path=SAVE_PATH,
                           distr_type=FLAGS.dist_type, n_labels=10, use_label=FLAGS.label)
@@ -323,33 +325,6 @@ def generate():
             generator.sample_style(sess, valid_data, plot_size=10, n_sample=10)
         else:
             generator.generate_samples(sess, plot_size=plot_size)
-
-# def sample_style():
-#     FLAGS = get_args()
-#     plot_size = 20
-
-#     valid_data = MNISTData('test',
-#                             data_dir=DATA_PATH,
-#                             shuffle=True,
-#                             pf=preprocess_im,
-#                             batch_dict_name=['im', 'label'])
-#     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
-
-#     model = AAE(n_code=FLAGS.ncode, use_supervise=True, n_class=10)
-#     model.create_train_model()
-
-#     generator = Generator(generate_model=model, save_path=SAVE_PATH,
-#                           n_labels=10)
-
-#     sessconfig = tf.ConfigProto()
-#     sessconfig.gpu_options.allow_growth = True
-#     with tf.Session(config=sessconfig) as sess:
-#         saver = tf.train.Saver()
-#         sess.run(tf.global_variables_initializer())
-#         saver.restore(sess, '{}aae-epoch-{}'.format(SAVE_PATH, FLAGS.load))
-
-#         generator.sample_style(sess, valid_data, n_sample=10, n_labels=10,
-#                                plot_size=10, file_id=None)
 
 def visualize():
     FLAGS = get_args()

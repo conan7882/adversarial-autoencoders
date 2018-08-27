@@ -46,11 +46,12 @@ class AAE(BaseModel):
             label = tf.convert_to_tensor(label) # [n_class]
             one_hot_label = tf.one_hot(label, self.n_class) # [n_class*n_sample, n_class]
 
-            encoder_out = self.encoder(self.image)
-            z, z_mu, z_std, z_log_std = self.sample_latent(encoder_out)
-            z = tf.tile(z, [n_sample, 1]) # [n_class*n_sample, n_code]
+            # encoder_out = self.encoder(self.image)
+            # z, z_mu, z_std, z_log_std = self.sample_latent(encoder_out)
+            z = ops.tf_sample_standard_diag_guassian(n_sample, self.n_code)
+            z = tf.tile(z, [n_class, 1]) # [n_class*n_sample, n_code]
             decoder_in = tf.concat((z, one_hot_label), axis=-1)
-            self.layers['generate_style'] = (self.decoder(decoder_in) + 1. ) / 2.
+            self.layers['generate'] = (self.decoder(decoder_in) + 1. ) / 2.
 
     def create_generate_model(self, b_size):
         self.set_is_training(False)
@@ -58,20 +59,20 @@ class AAE(BaseModel):
             self._create_generate_input()
             self.z = ops.tf_sample_standard_diag_guassian(b_size, self.n_code)
             decoder_in = self.z
-            if self._flag_supervise:
-                label = []
-                for i in range(self.n_class):
-                    label.extend([i for k in range(10)])
-            #     # label = [i for i in range(self.n_class)]
-                label = tf.convert_to_tensor(label) # [n_class]
-                one_hot_label = tf.one_hot(label, self.n_class) # [n_class*10, n_class]
-            #     # one_hot_label = tf.tile(one_hot_label, [10, 1]) # [n_class*10, n_class]
-            #     # one_hot_label = tf.transpose()
-                # encoder_out = self.encoder(self.image)
-                # z, z_mu, z_std, z_log_std = self.sample_latent(encoder_out)
-                choose_code = decoder_in[:self.n_class] # [n_class, n_code]
-                z = tf.tile(choose_code, [10, 1]) # [n_class*10, n_code]
-                decoder_in = tf.concat((z, one_hot_label), axis=-1)
+            # if self._flag_supervise:
+            #     label = []
+            #     for i in range(self.n_class):
+            #         label.extend([i for k in range(10)])
+            # #     # label = [i for i in range(self.n_class)]
+            #     label = tf.convert_to_tensor(label) # [n_class]
+            #     one_hot_label = tf.one_hot(label, self.n_class) # [n_class*10, n_class]
+            # #     # one_hot_label = tf.tile(one_hot_label, [10, 1]) # [n_class*10, n_class]
+            # #     # one_hot_label = tf.transpose()
+            #     # encoder_out = self.encoder(self.image)
+            #     # z, z_mu, z_std, z_log_std = self.sample_latent(encoder_out)
+            #     choose_code = decoder_in[:self.n_class] # [n_class, n_code]
+            #     z = tf.tile(choose_code, [10, 1]) # [n_class*10, n_code]
+            #     decoder_in = tf.concat((z, one_hot_label), axis=-1)
             self.layers['generate'] = (self.decoder(decoder_in) + 1. ) / 2.
             # self.layers['generate'] = tf.nn.sigmoid(self.decoder(self.z))
 
@@ -351,6 +352,7 @@ class AAE(BaseModel):
             var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/encoder') +\
                        tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/cls_layer')
             loss = self.get_cls_loss()
+            opt=tf.train.AdamOptimizer(self.lr, beta1=0.5)
             grads = tf.gradients(loss, var_list)
             return opt.apply_gradients(zip(grads, var_list))
 
