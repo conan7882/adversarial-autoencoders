@@ -45,7 +45,7 @@ The script [experiment/aae_mnist.py](experiment/aae_mnist.py) contains all the e
 * `--lr`:
 * `--dropout`:
 
-## Adversarial Autoencoder
+## 1.Adversarial Autoencoder
 
 ### Architecture
 *Architecture* | *Description*
@@ -98,7 +98,7 @@ Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 <img src = 'figs/gaussian.png' height = '230px'> | <img src = 'figs/gaussian_latent.png' height = '230px'> | <img src = 'figs/gaussian_manifold.png' height = '230px'>
 <img src = 'figs/gmm.png' height = '230px'> | <img src = 'figs/gmm_latent.png' height = '230px'> | <img src = 'figs/gmm_manifold.png' height = '230px'>
 
-## Incorporating label in the Adversarial Regularization
+## 2.Incorporating label in the Adversarial Regularization
 
 ### Architecture
 *Architecture* | *Description*
@@ -133,7 +133,7 @@ Hyperparameters are the same as previous section.
 **Use full label**| <img src = 'figs/gmm_full_label.png' width = '350px'> | <img src = 'figs/gmm_full_label_2.png' height = '150px'> <img src = 'figs/gmm_full_label_1.png' height = '150px'><img src = 'figs/gmm_full_label_0.png' height = '150px'> <img src = 'figs/gmm_full_label_9.png' height = '150px'>
 **10k labeled data and 40k unlabeled data** | <img src = 'figs/gmm_10k_label.png' width = '350px'> | <img src = 'figs/gmm_10k_label_2.png' height = '150px'> <img src = 'figs/gmm_10k_label_1.png' height = '150px'><img src = 'figs/gmm_10k_label_0.png' height = '150px'> <img src = 'figs/gmm_10k_label_9.png' height = '150px'>
 
-### Supervised Adversarial Autoencoders
+### 3.Supervised Adversarial Autoencoders
 
 ### Architecture
 *Architecture* | *Description*
@@ -162,7 +162,7 @@ Hyperparameters are the same as previous section.
 :---: | :---: | 
 <img src = 'figs/supervise_code2.png' height = '230px'>| <img src = 'figs/supervise_code10.png' height = '230px'>| 
 
-### Semi-supervised learning
+### 4.Semi-supervised learning
 
 ### Architecture
 *Architecture* | *Description*
