@@ -51,11 +51,11 @@ def get_args():
     parser.add_argument('--test', action='store_true',
                         help='test')
     parser.add_argument('--label', action='store_true',
-                        help='use label for training')
+                        help='Incorporate label info in adversarial regularization.')
     parser.add_argument('--noise', action='store_true',
                         help='add noise to input')
-    parser.add_argument('--semi', action='store_true',
-                        help='semi-supervise')
+    # parser.add_argument('--semi', action='store_true',
+    #                     help='Incorporate label info in adversarial regularization.')
     parser.add_argument('--supervise', action='store_true',
                         help='supervise')
     parser.add_argument('--load', type=int, default=99,
@@ -93,15 +93,25 @@ def get_args():
 
 
 def preprocess_im(im):
-    # im = im / 255.
-    # im += np.random.normal(loc=0.0, scale=0.3, size=im.shape)
-    # im = np.clip(im, 0, 1)
-    # im = im * 2. - 1.
-
+    """ normalize input image to [-1., 1.] """
     im = im / 255. * 2. - 1.
     return im
 
 def read_train_data(batch_size, n_use_label=None, n_use_sample=None):
+    """ Function for load training data 
+
+    If n_use_label or n_use_sample is not None, samples will be
+    randomly picked to have a balanced number of examples
+
+    Args:
+        batch_size (int): batch size
+        n_use_label (int): how many labels are used for training
+        n_use_sample (int): how many samples are used for training
+
+    Retuns:
+        MNISTData
+
+    """
     data = MNISTData('train',
                      data_dir=DATA_PATH,
                      shuffle=True,
@@ -113,6 +123,7 @@ def read_train_data(batch_size, n_use_label=None, n_use_sample=None):
     return data
 
 def read_valid_data(batch_size):
+    """ Function for load validation data """
     data = MNISTData('test',
                      data_dir=DATA_PATH,
                      shuffle=True,
@@ -122,25 +133,39 @@ def read_valid_data(batch_size):
     return data
 
 def semisupervised_train():
-    FLAGS = get_args()
+    """ Function for semisupervised training 
 
+    Validation will be processed after each epoch of training 
+    Loss of each modules will be averaged and saved in summaries
+    every 100 steps.
+    """
+
+    FLAGS = get_args()
+    # load dataset
     train_data_unlabel = read_train_data(FLAGS.bsize)
-    train_data_label = read_train_data(FLAGS.bsize, n_use_sample=128)
+    train_data_label = read_train_data(FLAGS.bsize, n_use_sample=1280)
     train_data = {'unlabeled': train_data_unlabel, 'labeled': train_data_label}
     valid_data = read_valid_data(FLAGS.bsize)
 
-    train_model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
-                use_label=False, use_supervise=False, add_noise=FLAGS.noise,
-                enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw,
-                cat_dis_weight=FLAGS.ydisw, cat_gen_weight=FLAGS.ygenw, cls_weight=FLAGS.clsw)
+    # create an AAE model for semisupervised training
+    train_model = AAE(
+        n_code=FLAGS.ncode, wd=0, n_class=10, add_noise=FLAGS.noise,
+        enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw,
+        cat_dis_weight=FLAGS.ydisw, cat_gen_weight=FLAGS.ygenw, cls_weight=FLAGS.clsw)
     train_model.create_semisupervised_train_model()
 
+    # create an separated AAE model for semisupervised validation
+    # shared weights with training model
     cls_valid_model = AAE(n_code=FLAGS.ncode, n_class=10)
     cls_valid_model.create_semisupervised_test_model()
 
-    trainer = Trainer(train_model, cls_valid_model=cls_valid_model, generate_model=None,
+    # initialize a trainer for training
+    trainer = Trainer(train_model,
+                      cls_valid_model=cls_valid_model,
+                      generate_model=None,
                       train_data=train_data,
-                      init_lr=FLAGS.lr, save_path=SAVE_PATH)
+                      init_lr=FLAGS.lr,
+                      save_path=SAVE_PATH)
 
     sessconfig = tf.ConfigProto()
     sessconfig.gpu_options.allow_growth = True
@@ -149,30 +174,44 @@ def semisupervised_train():
         sess.run(tf.global_variables_initializer())
         writer.add_graph(sess.graph)
         for epoch_id in range(FLAGS.maxepoch):
-            trainer.train_semisupervised_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
-            trainer.valid_semisupervised_epoch(sess, valid_data, summary_writer=writer)
+            trainer.train_semisupervised_epoch(
+                sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
+            trainer.valid_semisupervised_epoch(
+                sess, valid_data, summary_writer=writer)
     
-
 def supervised_train():
-    FLAGS = get_args()
+    """ Function for supervised training 
 
-    label_train_data = read_train_data(FLAGS.bsize, n_use_sample=1280)
-    unlabel_train_data = read_train_data(FLAGS.bsize)
+    Validation will be processed after each epoch of training.
+    Loss of each modules will be averaged and saved in summaries
+    every 100 steps. Every 10 epochs, 10 different style for 10 digits
+    will be saved.
+    """
+
+    FLAGS = get_args()
+    # load dataset
+    train_data = read_train_data(FLAGS.bsize)
     valid_data = read_valid_data(FLAGS.bsize)
 
+    # create an AAE model for supervised training
     model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
-                use_label=False, use_supervise=True, add_noise=FLAGS.noise,
+                use_supervise=True, add_noise=FLAGS.noise,
                 enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
     model.create_train_model()
 
+    # Create an separated AAE model for supervised validation
+    # shared weights with training model. This model is used to
+    # generate 10 different style for 10 digits for every 10 epochs.
     valid_model = AAE(n_code=FLAGS.ncode, use_supervise=True, n_class=10)
-    valid_model.create_generate_model(b_size=400)
+    # valid_model.create_generate_model(b_size=400)
     valid_model.create_generate_style_model(n_sample=10)
 
-    trainer = Trainer(model, valid_model, train_data, distr_type=FLAGS.dist_type, use_label=FLAGS.label,
+    # initialize a trainer for training
+    trainer = Trainer(model, valid_model, train_data,
                       init_lr=FLAGS.lr, save_path=SAVE_PATH)
-    generator = Generator(generate_model=valid_model, save_path=SAVE_PATH,
-                          distr_type=FLAGS.dist_type, n_labels=10, use_label=FLAGS.label)
+    # initialize a generator for generating style images
+    generator = Generator(
+        generate_model=valid_model, save_path=SAVE_PATH, n_labels=10)
 
     sessconfig = tf.ConfigProto()
     sessconfig.gpu_options.allow_growth = True
@@ -183,42 +222,65 @@ def supervised_train():
         writer.add_graph(sess.graph)
 
         for epoch_id in range(FLAGS.maxepoch):
-            trainer.train_gan_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
+            trainer.train_z_gan_epoch(
+                sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
             trainer.valid_epoch(sess, dataflow=valid_data, summary_writer=writer)
             
             if epoch_id % 10 == 0:
                 saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
-                generator.sample_style(sess, valid_data, plot_size=10, file_id=epoch_id, n_sample=10)
+                generator.sample_style(sess, valid_data, plot_size=10,
+                                       file_id=epoch_id, n_sample=10)
         saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
 
 def train():
+    """ Function for unsupervised training and incorporate
+        label info in adversarial regularization
+
+    Validation will be processed after each epoch of training.
+    Loss of each modules will be averaged and saved in summaries
+    every 100 steps. Random samples and learned latent space will
+    be saved for every 10 epochs.
+    """
+
     FLAGS = get_args()
+    # image size for visualization. plot_size * plot_size digits will be visualized.
     plot_size = 20
 
-    n_use_label=None
-    if FLAGS.semi:
-        n_use_label = 10000
-        print('*** Only {} labels are used. ***'.format(n_use_label))
+    # Use 10000 labels info to train latent space
+    n_use_label = 10000
+    # n_use_label=None
+    # if FLAGS.semi:
+    #     n_use_label = 10000
+    #     print('*** Only {} labels are used. ***'.format(n_use_label))
 
-    train_data = read_train_data(FLAGS.bsize, n_use_label=n_use_label, n_use_sample=None)
+    # load data
+    train_data = read_train_data(FLAGS.bsize, n_use_label=n_use_label)
     valid_data = read_valid_data(FLAGS.bsize)
 
+    # create an AAE model for training
     model = AAE(n_code=FLAGS.ncode, wd=0, n_class=10, 
-                use_label=FLAGS.label, use_supervise=False, add_noise=FLAGS.noise,
+                use_label=FLAGS.label, add_noise=FLAGS.noise,
                 enc_weight=FLAGS.encw, gen_weight=FLAGS.genw, dis_weight=FLAGS.disw)
     model.create_train_model()
 
-    valid_model = AAE(n_code=FLAGS.ncode, use_supervise=False, n_class=10)
+    # Create an separated AAE model for validation shared weights 
+    # with training model. This model is used to
+    # randomly sample model data every 10 epoches.
+    valid_model = AAE(n_code=FLAGS.ncode, n_class=10)
     valid_model.create_generate_model(b_size=400)
-    # if FLAGS.supervise:
-    #     valid_model.create_generate_style_model(n_sample=10)
 
-    trainer = Trainer(model, valid_model, train_data, distr_type=FLAGS.dist_type, use_label=FLAGS.label,
+    # initialize a trainer for training
+    trainer = Trainer(model, valid_model, train_data,
+                      distr_type=FLAGS.dist_type, use_label=FLAGS.label,
                       init_lr=FLAGS.lr, save_path=SAVE_PATH)
-    # if FLAGS.ncode == 2:
-    visualizer = Visualizer(model, save_path=SAVE_PATH)
+    # Initialize a visualizer and a generator to monitor learned
+    # latent space and data generation.
+    # Latent space visualization only for code dim = 2
+    if FLAGS.ncode == 2:
+        visualizer = Visualizer(model, save_path=SAVE_PATH)
     generator = Generator(generate_model=valid_model, save_path=SAVE_PATH,
-                          distr_type=FLAGS.dist_type, n_labels=10, use_label=FLAGS.label)
+                          distr_type=FLAGS.dist_type, n_labels=10,
+                          use_label=FLAGS.label)
 
     sessconfig = tf.ConfigProto()
     sessconfig.gpu_options.allow_growth = True
@@ -229,14 +291,11 @@ def train():
         writer.add_graph(sess.graph)
 
         for epoch_id in range(FLAGS.maxepoch):
-            trainer.train_gan_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
+            trainer.train_z_gan_epoch(sess, ae_dropout=FLAGS.dropout, summary_writer=writer)
             trainer.valid_epoch(sess, dataflow=valid_data, summary_writer=writer)
             
             if epoch_id % 10 == 0:
                 saver.save(sess, '{}aae-epoch-{}'.format(SAVE_PATH, epoch_id))
-                # if FLAGS.supervise:
-                #     generator.sample_style(sess, valid_data, plot_size=10, file_id=epoch_id, n_sample=10)
-                # else:
                 generator.generate_samples(sess, plot_size=plot_size, file_id=epoch_id)
                 if FLAGS.ncode == 2:
                     visualizer.viz_2Dlatent_variable(sess, valid_data, file_id=epoch_id)
@@ -252,7 +311,6 @@ def generate():
                             pf=preprocess_im,
                             batch_dict_name=['im', 'label'])
     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
-
 
     generate_model = AAE(n_code=FLAGS.ncode, use_supervise=FLAGS.supervise, n_class=10)
     generate_model.create_generate_model(b_size=plot_size*plot_size)
@@ -272,7 +330,6 @@ def generate():
             generator.sample_style(sess, valid_data, plot_size=10, n_sample=10)
         else:
             generator.generate_samples(sess, plot_size=plot_size)
-        # generator.generate_samples(sess, plot_size=plot_size)
 
 # def sample_style():
 #     FLAGS = get_args()
