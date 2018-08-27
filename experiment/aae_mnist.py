@@ -27,11 +27,6 @@ if platform.node() == 'Qians-MacBook-Pro.local':
 elif platform.node() == 'arostitan':
     DATA_PATH = '/home/qge2/workspace/data/MNIST_data/'
     SAVE_PATH = '/home/qge2/workspace/data/out/vae/'
-else:
-    DATA_PATH = 'E://Dataset//MNIST//'
-    SAVE_PATH = 'E:/tmp/vae/tmp/'
-    # RESULT_PATH = 'E:/tmp/ram/trans/result/'
-
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -93,11 +88,6 @@ def get_args():
 
 
 def preprocess_im(im):
-    # im = im / 255.
-    # im += np.random.normal(loc=0.0, scale=0.3, size=im.shape)
-    # im = np.clip(im, 0, 1)
-    # im = im * 2. - 1.
-
     im = im / 255. * 2. - 1.
     return im
 
@@ -272,34 +262,6 @@ def generate():
             generator.sample_style(sess, valid_data, plot_size=10, n_sample=10)
         else:
             generator.generate_samples(sess, plot_size=plot_size)
-        # generator.generate_samples(sess, plot_size=plot_size)
-
-# def sample_style():
-#     FLAGS = get_args()
-#     plot_size = 20
-
-#     valid_data = MNISTData('test',
-#                             data_dir=DATA_PATH,
-#                             shuffle=True,
-#                             pf=preprocess_im,
-#                             batch_dict_name=['im', 'label'])
-#     valid_data.setup(epoch_val=0, batch_size=FLAGS.bsize)
-
-#     model = AAE(n_code=FLAGS.ncode, use_supervise=True, n_class=10)
-#     model.create_train_model()
-
-#     generator = Generator(generate_model=model, save_path=SAVE_PATH,
-#                           n_labels=10)
-
-#     sessconfig = tf.ConfigProto()
-#     sessconfig.gpu_options.allow_growth = True
-#     with tf.Session(config=sessconfig) as sess:
-#         saver = tf.train.Saver()
-#         sess.run(tf.global_variables_initializer())
-#         saver.restore(sess, '{}aae-epoch-{}'.format(SAVE_PATH, FLAGS.load))
-
-#         generator.sample_style(sess, valid_data, n_sample=10, n_labels=10,
-#                                plot_size=10, file_id=None)
 
 def visualize():
     FLAGS = get_args()

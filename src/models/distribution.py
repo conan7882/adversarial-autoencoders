@@ -51,8 +51,11 @@ def diagonal_gaussian(batch_size, n_dim, mean=0, var=1.):
     z = np.random.multivariate_normal(
         mean_vec, cov_mat, (batch_size,)).astype(np.float32)
     return z
+
 def gaussian_mixture(batch_size, n_dim=2, n_labels=10,
                      x_var=0.5, y_var=0.1, label_indices=None):
+    # borrow from:
+    # https://github.com/nicklhy/AdversarialAutoEncoder/blob/master/data_factory.py#L40
     if n_dim % 2 != 0:
         raise Exception("n_dim must be a multiple of 2.")
 
