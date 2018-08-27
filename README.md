@@ -30,7 +30,7 @@ Option | ``--bsize``
 ### Architecture
 *Prior Distribution* | *Description*
 :---: | :--- |
-<img src = 'figs/gaussian.png' width = '1500px'> | The top row is an autoencoder. z is sampled through the reparameterization trick discussed in [variational autoencoder paper](https://arxiv.org/abs/1312.6114). The bottom row is a discriminator to separate samples generate from the encoder and samples from the prior distribution p(z).
+<img src = 'figs/s_1.png' width = '1200px'> | The top row is an autoencoder. z is sampled through the reparameterization trick discussed in [variational autoencoder paper](https://arxiv.org/abs/1312.6114). The bottom row is a discriminator to separate samples generate from the encoder and samples from the prior distribution p(z).
 
 
 ### Hyperparameters
@@ -54,7 +54,7 @@ Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 ### Architecture
 *Prior Distribution* | *Description*
 :---: | :--- |
-<img src = 'figs/gaussian.png' width = '1500px'> | The only difference from previous model is that the one-hot label is used as input of encoder and there is one extra class for unlabeled data. For mixture of Gaussian prior, real samples are drawn from each components for each labeled class and for unlabeled data, real samples are drawn from the mixture distribution.
+<img src = 'figs/s_2.png' width = '1200px'> | The only difference from previous model is that the one-hot label is used as input of encoder and there is one extra class for unlabeled data. For mixture of Gaussian prior, real samples are drawn from each components for each labeled class and for unlabeled data, real samples are drawn from the mixture distribution.
 
 ### Hyperparameters
 Hyperparameters are the same as previous section.
