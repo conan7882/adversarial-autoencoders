@@ -174,8 +174,8 @@ Hyperparameters are the same as previous section.
 :---| :---|
 Dimention of z | 10 |
 Batch Size | 128 |
-Max Epoch | 400 |
-Learning Rate | 1e-4 initial / 1e-5 after 50 epochs / 1e-6 after 150 epochs
+Max Epoch | 250 |
+Learning Rate | 1e-4 initial / 1e-5 after 150 epochs / 1e-6 after 200 epochs
 Reconstruction Loss Weight | 1.0 |
 Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 Letant y Generator and Discriminator Loss Weight | 6.0 / 6.0 |
