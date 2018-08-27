@@ -1,20 +1,69 @@
-# Adversarial Autoencoders
+# Adversarial Autoencoders (AAE)
 
 - Tensorflow implementation of [Adversarial Autoencoders](https://arxiv.org/abs/1511.05644) (ICLR 2016)
 
-##  
+## Requirements
+- Python 3.3+
+- [TensorFlow 1.9+](https://www.tensorflow.org/)
+- [Numpy](http://www.numpy.org/)
+- [Scipy](https://www.scipy.org/)
+
+
+## Implementation details
+- All the models of AAE are defined in [src/models/aae.py](src/models/aae.py). **create**
+- Examples of how to use AAE models can be found in [experiment/aae_mnist.py](experiment/aae_mnist.py).
+- Encoder, decoder and all discriminators contain two fully connected layers with 1000 hidden units and RelU activation function. Decoder and all discriminators contain an additional fully connected layer for output.
+- Images are normlized to [-1, 1] before fed into the encoder and tanh is used as the output nonlineary of decoder.
+
+## Preparation
+- Download the MNIST dataset from [here](http://yann.lecun.com/exdb/mnist/).
+- Setup path in [`experiment/aae_mnist.py`](experiment/aae_mnist.pyy):
+`DATA_PATH ` is the path to put MNIST dataset.
+`SAVE_PATH ` is the path to save output images and trained model.
+
+## Usage
+The script [experiment/aae_mnist.py](experiment/aae_mnist.py) contains all the experiments shown here. Detailed usage for each experiment will be describe later along with the results.
+### Argument
+* `--train`: Train AAE by imposing a prior distribution on the hidden codes without or with label (if `--label` is true).
+* `--label`: AAE imposing a prior distribution on the hidden codes with label information.
+* `--train_supervised`: Train the network.
+* `--train_semisupervised`: Train the network.
+* `--noise`:
+* `--generate`: Random sample data from trained model.
+* `--viz`: Visualize latent space and data manifold (only when `--ncode` is 2)
+* `--load`:
+* `--dist_type`: Type of the prior distribution use to impose on the hidden codes. Default: `gaussian`. `gmm` for Gaussian mixture distribution.
+* `--ncode`: Code dimension. Default: `2`
+* `--encw`:
+* `--genw`:
+* `--disw`:
+* `--clsw`:
+* `--ygenw`:
+* `--ydisw`:
+* `--lr`:
+* `--dropout`:
+
+## Adversarial Autoencoder
+
+### Architecture
+*Architecture* | *Description*
+:---: | :--- |
+<img src = 'figs/s_1.png' width = '1500px'> | The top row is an autoencoder. z is sampled through the reparameterization trick discussed in [variational autoencoder paper](https://arxiv.org/abs/1312.6114). The bottom row is a discriminator to separate samples generate from the encoder and samples from the prior distribution p(z).
+
+
 ### Usage
- Training. Summary, randomly sampled images and latent space will be saved in `SAVE_PATH`.
+
+- Training. Summary, randomly sampled images and latent space during training will be saved in `SAVE_PATH`.
 
  ```
  python aae_mnist.py --train --dist_type <TYPE_OF_PRIOR>
  ```
  
- Random sample data from trained model. Image will be saved in `SAVE_PATH` with name `generate_im.png`.
+ - Random sample data from trained model. Image will be saved in `SAVE_PATH` with name `generate_im.png`.
  ```
  python aae_mnist.py --generate --dist_type <TYPE_OF_PRIOR> --load <RESTORE_MODEL_ID>
  ```
- Visualize latent space and data manifold (only when code dim = 2). Image will be saved in `SAVE_PATH` with name `generate_im.png` and `latent.png`. For Gaussian distribution, there will be one image for data manifold. For mixture of 10 2D Gaussian, there will be 10 images of data manifold for each component of the distribution.
+ - Visualize latent space and data manifold (only when code dim = 2). Image will be saved in `SAVE_PATH` with name `generate_im.png` and `latent.png`. For Gaussian distribution, there will be one image for data manifold. For mixture of 10 2D Gaussian, there will be 10 images of data manifold for each component of the distribution.
  ```
  python aae_mnist.py --viz --dist_type <TYPE_OF_PRIOR> --load <RESTORE_MODEL_ID>
  ```
@@ -27,10 +76,7 @@ Visualize latent space and data manifold (only when code dim = 2) |``python aae_
 Option | ``--bsize``
 --->
 
-### Architecture
-*Prior Distribution* | *Description*
-:---: | :--- |
-<img src = 'figs/s_1.png' width = '1200px'> | The top row is an autoencoder. z is sampled through the reparameterization trick discussed in [variational autoencoder paper](https://arxiv.org/abs/1312.6114). The bottom row is a discriminator to separate samples generate from the encoder and samples from the prior distribution p(z).
+
 
 
 ### Hyperparameters
@@ -54,7 +100,7 @@ Letant z Generator and Discriminator Loss Weight | 6.0 / 6.0 |
 ### Architecture
 *Prior Distribution* | *Description*
 :---: | :--- |
-<img src = 'figs/s_2.png' width = '1200px'> | The only difference from previous model is that the one-hot label is used as input of encoder and there is one extra class for unlabeled data. For mixture of Gaussian prior, real samples are drawn from each components for each labeled class and for unlabeled data, real samples are drawn from the mixture distribution.
+<img src = 'figs/s_2.png' width = '1500px'> | The only difference from previous model is that the one-hot label is used as input of encoder and there is one extra class for unlabeled data. For mixture of Gaussian prior, real samples are drawn from each components for each labeled class and for unlabeled data, real samples are drawn from the mixture distribution.
 
 ### Hyperparameters
 Hyperparameters are the same as previous section.
