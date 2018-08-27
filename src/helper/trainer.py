@@ -47,8 +47,8 @@ class Trainer(object):
         self._use_label = use_label
         self._dist = distr_type
 
-        self._train_op = train_model.get_train_op()
-        self._loss_op = train_model.get_loss()
+        self._train_op = train_model.get_reconstruction_train_op()
+        self._loss_op = train_model.get_reconstruction_loss()
         self._train_summary_op = train_model.get_train_summary()
         self._valid_summary_op = train_model.get_valid_summary()
 
@@ -57,7 +57,7 @@ class Trainer(object):
             self._train_g_op = train_model.get_latent_generator_train_op()
             self._d_loss_op = train_model.latent_d_loss
             self._g_loss_op = train_model.latent_g_loss
-        except AttributeError:
+        except (AttributeError, KeyError):
             pass
 
         try:
@@ -65,14 +65,14 @@ class Trainer(object):
             self._train_cat_g_op = train_model.get_cat_generator_train_op()
             self._cat_d_loss_op = train_model.cat_d_loss
             self._cat_g_loss_op = train_model.cat_g_loss
-        except AttributeError:
+        except (AttributeError, KeyError):
             pass
 
         try:
-            self._cls_train_op = train_model.get_semisupervised_train_op()
-            self._cls_loss_op = train_model.cls_loss
+            self._cls_train_op = train_model.get_cls_train_op()
+            self._cls_loss_op = train_model.get_cls_loss()
             self._cls_accuracy_op = train_model.get_cls_accuracy()
-        except AttributeError:
+        except (AttributeError, KeyError):
             pass
 
         if generate_model is not None:
@@ -243,7 +243,7 @@ class Trainer(object):
                 summary_writer=summary_writer)
 
 
-    def train_gan_epoch(self, sess, ae_dropout=1.0, summary_writer=None):
+    def train_z_gan_epoch(self, sess, ae_dropout=1.0, summary_writer=None):
         self._t_model.set_is_training(True)
         display_name_list = ['loss', 'd_loss', 'g_loss']
         cur_summary = None
@@ -285,13 +285,15 @@ class Trainer(object):
                 label_indices = label
             else:
                 label_indices = None
-            if self._dist ==  'gaussian':
-                real_sample = distribution.diagonal_gaussian(
-                    len(im), self._t_model.n_code, mean=0, var=1.0)
-            else:
+
+            if self._dist == 'gmm':
                 real_sample = distribution.gaussian_mixture(
                     len(im), n_dim=self._t_model.n_code, n_labels=10,
                     x_var=0.5, y_var=0.1, label_indices=label_indices)
+            else:
+                real_sample = distribution.diagonal_gaussian(
+                    len(im), self._t_model.n_code, mean=0, var=1.0)
+
             # train autoencoder
             _, loss, cur_summary = sess.run(
                 [self._train_op, self._loss_op, self._train_summary_op], 

@@ -102,9 +102,9 @@ class AAE(BaseModel):
             self.layers['cls_logits'] = self.cls_layer(self.layers['encoder_out'])
             self.layers['y'] = tf.argmax(self.layers['cls_logits'], axis=-1,
                                          name='label_predict')
-        # create cls_loss node for validation
-        self.lr = 1
-        self.get_semisupervised_train_op()
+        # # create cls_loss node for validation
+        # self.lr = 1
+        # self.get_semisupervised_train_op()
 
 
     def create_semisupervised_train_model(self):
@@ -168,8 +168,8 @@ class AAE(BaseModel):
             self.decoder_in = self.layers['z']
             if self._flag_supervise:
                 one_hot_label = tf.one_hot(self.label, self.n_class)
-                decoder_in = tf.concat((self.decoder_in, one_hot_label), axis=-1)
-            self.layers['decoder_out'] = self.decoder(decoder_in)
+                self.decoder_in = tf.concat((self.decoder_in, one_hot_label), axis=-1)
+            self.layers['decoder_out'] = self.decoder(self.decoder_in)
             self.layers['sample_im'] = (self.layers['decoder_out'] + 1. ) / 2.
 
         with tf.variable_scope('regularization_z'):
@@ -256,12 +256,12 @@ class AAE(BaseModel):
                                               init_w=INIT_W)
             return fc_out
 
-    def sample_prior(self):
-        b_size = tf.shape(self.image)[0]
-        samples = ops.tf_sample_standard_diag_guassian(b_size, self.n_code)
-        return samples
+    # def sample_prior(self):
+    #     b_size = tf.shape(self.image)[0]
+    #     samples = ops.tf_sample_standard_diag_guassian(b_size, self.n_code)
+    #     return samples
 
-    def _get_loss(self):
+    def _get_reconstruction_loss(self):
         with tf.name_scope('reconstruction_loss'):
             p_hat = self.layers['decoder_out']
             p = self.image
@@ -269,16 +269,19 @@ class AAE(BaseModel):
 
             return autoencoder_loss * self._enc_w
 
-    # def _get_optimizer(self):
-    #     return tf.train.AdamOptimizer(self.lr, beta1=0.5)
-        # return tf.train.MomentumOptimizer(self.lr, momentum=0.9)
+    def get_reconstruction_loss(self):
+        try:
+            return self._reconstr_loss
+        except AttributeError:
+            self._reconstr_loss = self._get_reconstruction_loss()
+        return self._reconstr_loss
 
-    def get_train_op(self):
-        with tf.name_scope('train'):
+    def get_reconstruction_train_op(self):
+        with tf.name_scope('reconstruction_train'):
             opt = tf.train.AdamOptimizer(self.lr, beta1=0.5)
-            loss = self.get_loss()
+            loss = self.get_reconstruction_loss()
             var_list = tf.trainable_variables(scope='AE')
-            print(var_list)
+            # print(var_list)
             grads = tf.gradients(loss, var_list)
             return opt.apply_gradients(zip(grads, var_list))
 
@@ -343,17 +346,42 @@ class AAE(BaseModel):
             name='y_discrimator_train_op')
         return train_op
 
-    def get_semisupervised_train_op(self):
-        var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/encoder') +\
-                   tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/cls_layer')
-        self.cls_loss, train_op  = modules.train_by_cross_entropy_loss(
+    def get_cls_train_op(self):
+        with tf.name_scope('cls_train_op'):
+            var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/encoder') +\
+                       tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='AE/cls_layer')
+            loss = self.get_cls_loss()
+            grads = tf.gradients(loss, var_list)
+            return opt.apply_gradients(zip(grads, var_list))
+
+        
+        # self.cls_loss, train_op  = modules.train_by_cross_entropy_loss(
+        #     logits=self.layers['cls_logits'],
+        #     labels=self.label,
+        #     loss_weight=self._cls_w,
+        #     opt=tf.train.AdamOptimizer(self.lr, beta1=0.5),
+        #     var_list=var_list,
+        #     name='semisupervised_train_op')
+        # return train_op
+
+    def _get_cls_loss(self):
+        with tf.name_scope('cls_loss'):
             logits=self.layers['cls_logits'],
             labels=self.label,
-            loss_weight=self._cls_w,
-            opt=tf.train.AdamOptimizer(self.lr, beta1=0.5),
-            var_list=var_list,
-            name='semisupervised_train_op')
-        return train_op
+            cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels=labels,
+                logits=logits,
+                name='cross_entropy')
+            cross_entropy = tf.reduce_mean(cross_entropy)
+
+            return cross_entropy * self._cls_w
+
+    def get_cls_loss(self):
+        try:
+            return self._cls_loss
+        except AttributeError:
+            self._cls_loss = self._get_cls_loss()
+        return self._cls_loss
 
         # with tf.name_scope('semisupervised_train_op'):
         #     with tf.name_scope('cls_loss'):
@@ -447,12 +475,12 @@ class AAE(BaseModel):
                 collections=['train'])
             try:
                 tf.summary.histogram(
-                    name='y real distribution', values=self.real_y,
-                    collections=['train'])
-                tf.summary.histogram(
                     name='y encoder distribution', values=self.layers['y'],
                     collections=['train'])
-            except AttributeError:
+                tf.summary.histogram(
+                    name='y real distribution', values=self.real_y,
+                    collections=['train'])
+            except KeyError:
                 pass
         # var_list = tf.trainable_variables()
         # [tf.summary.histogram('gradient/' + var.name, grad, 
