@@ -3,12 +3,9 @@
 # File: aae_mnist.py
 # Author: Qian Ge <geqian1001@gmail.com>
 
-import os
 import sys
-import platform
 import argparse
 import numpy as np
-import scipy.misc
 import tensorflow as tf
 
 sys.path.append('../')
@@ -17,15 +14,10 @@ from src.models.aae import AAE
 from src.helper.trainer import Trainer
 from src.helper.generator import Generator
 from src.helper.visualizer import Visualizer
-import src.models.distribution as distribution
 
-if platform.node() == 'Qians-MacBook-Pro.local':
-    DATA_PATH = '/Users/gq/workspace/Dataset/MNIST_data/'
-    SAVE_PATH = '/Users/gq/tmp/vae/style/'
-    RESULT_PATH = '/Users/gq/tmp/ram/center/result/'
-elif platform.node() == 'arostitan':
-    DATA_PATH = '/home/qge2/workspace/data/MNIST_data/'
-    SAVE_PATH = '/home/qge2/workspace/data/out/vae/'
+
+DATA_PATH = '/home/qge2/workspace/data/MNIST_data/'
+SAVE_PATH = '/home/qge2/workspace/data/out/vae/'
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -75,11 +67,6 @@ def get_args():
                         help='Weight of y generator loss')
     parser.add_argument('--ydisw', type=float, default=6.,
                         help='Weight of y discriminator loss')
-
-    
-
-    parser.add_argument('--test', action='store_true',
-                        help='test')
     
     return parser.parse_args()
 
@@ -362,47 +349,6 @@ def visualize():
         # visulize the learned manifold
         generator.generate_samples(sess, plot_size=plot_size, manifold=True)
 
-def test():
-    # import matplotlib.pyplot as plt
-    # import matplotlib as mpl
-    # # mpl.use('Agg')
-    # import src.models.ops as ops
-    # real_sample = distribution.diagonal_gaussian(10000, n_dim=2, mean=0, var=1.)
-    # real_sample = distribution.gaussian_mixture(
-    #     10000, 2, n_labels=10, x_var=0.5, y_var=0.1, label_indices=None)
-    
-    # fig =plt.figure()
-    # ax = fig.add_subplot(111, aspect='equal')
-    # ax.scatter(real_sample[:,0], real_sample[:,1], s=3)
-    # 
-    # for mode_id in range(0, 10):
-    #     real_sample = distribution.interpolate_gm(
-    #         plot_size=20,
-    #         mode_id=mode_id, n_mode=10)
-    #     plt.scatter(real_sample[:,0], real_sample[:,1], s=3)
-
-    # ax.set_xlim([-3.5, 3.5])
-    # ax.set_ylim([-3.5, 3.5])
-    # plt.show()
-
-
-    valid_data = MNISTData('test',
-                            data_dir=DATA_PATH,
-                            shuffle=True,
-                            pf=preprocess_im,
-                            batch_dict_name=['im', 'label'],
-                            n_use_label=2,
-                            n_use_sample=5)
-    valid_data.setup(epoch_val=0, batch_size=128)
-    print(valid_data.size())
-    print(valid_data.label_list)
-    # batch_data = valid_data.next_batch_dict()
-
-    # plt.figure()
-    # plt.imshow(np.squeeze(batch_data['im'][0]))
-    # plt.show()
-    # print(batch_data['label'])
-
 if __name__ == '__main__':
     FLAGS = get_args()
 
@@ -416,5 +362,3 @@ if __name__ == '__main__':
         generate()
     elif FLAGS.viz:
         visualize()
-    elif FLAGS.test:
-        test()
