@@ -195,7 +195,7 @@ Learning Rate | 1e-4 (initial) / 1e-5 (150 epochs) / 1e-6 (200 epochs)
 ### Result
 - 1280 labels are used (128 labeled images per class)
 
-learning curve for training set
+learning curve for training set (computed only on the training set with labels)
 ![train](figs/semi_train.png)
 
 learning curve for testing set
