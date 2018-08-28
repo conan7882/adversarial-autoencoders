@@ -11,7 +11,10 @@
 
 
 ## Implementation details
-- All the models of AAE are defined in [src/models/aae.py](src/models/aae.py). **create**
+- All the models of AAE are defined in [src/models/aae.py](src/models/aae.py). 
+- Model corresponds to fig 1 and 3 in the paper can be found here: [train](https://github.com/conan7882/adversarial-autoencoders-tf/blob/master/src/models/aae.py#L110) and [test](https://github.com/conan7882/adversarial-autoencoders-tf/blob/master/src/models/aae.py#L164).
+- Model corresponds to fig 6 in the paper can be found here: [train](https://github.com/conan7882/adversarial-autoencoders-tf/blob/master/src/models/aae.py#L110) and [test](https://github.com/conan7882/adversarial-autoencoders-tf/blob/master/src/models/aae.py#L148).
+- Model corresponds to fig 8 in the paper can be found here: [train](https://github.com/conan7882/adversarial-autoencoders-tf/blob/master/src/models/aae.py#L71) and [test](https://github.com/conan7882/adversarial-autoencoders-tf/blob/master/src/models/aae.py#L182).
 - Examples of how to use AAE models can be found in [experiment/aae_mnist.py](experiment/aae_mnist.py).
 - Encoder, decoder and all discriminators contain two fully connected layers with 1000 hidden units and RelU activation function. Decoder and all discriminators contain an additional fully connected layer for output.
 - Images are normalized to [-1, 1] before fed into the encoder and tanh is used as the output nonlinear of decoder.
@@ -26,24 +29,27 @@
 ## Usage
 The script [experiment/aae_mnist.py](experiment/aae_mnist.py) contains all the experiments shown here. Detailed usage for each experiment will be describe later along with the results.
 ### Argument
-* `--train`: Train AAE by imposing a prior distribution on the hidden codes without or with label (if `--label` is true).
-* `--label`: AAE imposing a prior distribution on the hidden codes with label information.
-* `--train_supervised`: Train the network.
-* `--train_semisupervised`: Train the network.
-* `--noise`:
-* `--generate`: Random sample data from trained model.
-* `--viz`: Visualize latent space and data manifold (only when `--ncode` is 2)
-* `--load`:
-* `--dist_type`: Type of the prior distribution use to impose on the hidden codes. Default: `gaussian`. `gmm` for Gaussian mixture distribution.
-* `--ncode`: Code dimension. Default: `2`
-* `--encw`:
-* `--genw`:
-* `--disw`:
-* `--clsw`:
-* `--ygenw`:
-* `--ydisw`:
-* `--lr`:
-* `--dropout`:
+* `--train`: Train the model of Fig 1 and 3 in the paper..
+* `--train_supervised`: Train the model of Fig 6 in the paper..
+* `--train_semisupervised`: Train the model of Fig 8 in the paper.
+* `--label`: Incorporate label information in the adversarial regularization (Fig 3 in the paper).
+* `--generate`: Randomly sample images from trained model.
+* `--viz`: Visualize latent space and data manifold (only when `--ncode` is 2).
+* `--supervise`: Sampling from supervised model (Fig 6 in the paper) when `--generate` is True.
+* `--load`: The epoch ID of pre-trained model to be restored.
+* `--ncode`: Dimension of code. Default: `2`
+* `--dist_type`: Type of the prior distribution used to impose on the hidden codes. Default: `gaussian`. `gmm` for Gaussian mixture distribution.  
+* `--noise`: Add noise to encoder input (Gaussian with std=0.6).
+* `--lr`: Initial learning rate. Default: `2e-4`.
+* `--dropout`: Keep probability for dropout. Default: `1.0`.
+* `--bsize`: Batch size. Default: `128`.
+* `--maxepoch`: Max number of epochs. Default: `100`.
+* `--encw`: Weight of autoencoder loss. Default: `1.0`.
+* `--genw`: Weight of z generator loss. Default: `6.0`.
+* `--disw`: Weight of z discriminator loss. Default: `6.0`.
+* `--clsw`: Weight of semi-supervised loss. Default: `1.0`.
+* `--ygenw`: Weight of y generator loss. Default: `6.0`.
+* `--ydisw`: Weight of y discriminator loss. Default: `6.0`.
 
 ## 1. Adversarial Autoencoder
 
