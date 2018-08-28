@@ -1,6 +1,8 @@
 # Adversarial Autoencoders (AAE)
 
 - Tensorflow implementation of [Adversarial Autoencoders](https://arxiv.org/abs/1511.05644) (ICLR 2016)
+- Similar to variational autoencoder (VAE), AAE imposes a prior on the latent variable z. Howerver, instead of maximizing the evidence lower bound (ELBO) like VAE, AAE utilizes a adversarial network structure to guides the model distribution of z to match the prior distribution.
+- This repository contains reproduce of several experiments mentioned in the paper.
 
 ## Requirements
 - Python 3.3+
@@ -191,7 +193,7 @@ Learning Rate | 1e-4 (initial) / 1e-5 (150 epochs) / 1e-6 (200 epochs)
  ```
 
 ### Result
-- 1028 labels are used (around 100 labeled images per class)
+- 1280 labels are used (128 labeled images per class)
 
 learning curve for training set
 ![train](figs/semi_train.png)
