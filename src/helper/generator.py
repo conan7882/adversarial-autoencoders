@@ -26,11 +26,11 @@ class Generator(object):
         if self._use_label:
             assert self._n_labels is not None
 
-    def sample_style(self, sess, dataflow, plot_size, n_sample=10, file_id=None):
-        epochs_completed, batch_size = dataflow.epochs_completed, dataflow.batch_size 
-        dataflow.setup(epoch_val=0, batch_size=n_sample)
+    def sample_style(self, sess, plot_size, n_sample=10, file_id=None):
+        # epochs_completed, batch_size = dataflow.epochs_completed, dataflow.batch_size 
+        # dataflow.setup(epoch_val=0, batch_size=n_sample)
 
-        batch_data = dataflow.next_batch_dict()
+        # batch_data = dataflow.next_batch_dict()
         # latent_var = sess.run(
         #     self._latent_op, 
         #     feed_dict={self._g_model.encoder_in: batch_data['im'],

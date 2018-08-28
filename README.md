@@ -14,7 +14,7 @@
 - All the models of AAE are defined in [src/models/aae.py](src/models/aae.py). **create**
 - Examples of how to use AAE models can be found in [experiment/aae_mnist.py](experiment/aae_mnist.py).
 - Encoder, decoder and all discriminators contain two fully connected layers with 1000 hidden units and RelU activation function. Decoder and all discriminators contain an additional fully connected layer for output.
-- Images are normlized to [-1, 1] before fed into the encoder and tanh is used as the output nonlineary of decoder.
+- Images are normalized to [-1, 1] before fed into the encoder and tanh is used as the output nonlinear of decoder.
 - All the sub-networks are optimized by Adam optimizer with `beta1 = 0.5`.
 
 ## Preparation
@@ -50,13 +50,13 @@ The script [experiment/aae_mnist.py](experiment/aae_mnist.py) contains all the e
 ### Architecture
 *Architecture* | *Description*
 :---: | :--- |
-<img src = 'figs/s_1.png' width = '1500px'> | The top row is an autoencoder. z is sampled through the reparameterization trick discussed in [variational autoencoder paper](https://arxiv.org/abs/1312.6114). The bottom row is a discriminator to separate samples generate from the encoder and samples from the prior distribution p(z).
+<img src = 'figs/s_1.png' width = '1500px'> | The top row is an autoencoder. z is sampled through the re-parameterization trick discussed in [variational autoencoder paper](https://arxiv.org/abs/1312.6114). The bottom row is a discriminator to separate samples generate from the encoder and samples from the prior distribution p(z).
 
 ### Hyperparameters
 *name* | *value* |
 :---| :---|
 Reconstruction Loss Weight | 1.0 |
-Letant z G/D Loss Weight | 6.0 / 6.0 |
+Latent z G/D Loss Weight | 6.0 / 6.0 |
 Batch Size | 128 |
 Max Epoch | 400 |
 Learning Rate | 2e-4 (initial) / 2e-5 (100 epochs) / 2e-6 (300 epochs)
@@ -123,7 +123,7 @@ Hyperparameters are the same as previous section.
  ```
  ### Result
  - Compare with the result in the previous section, incorporating labeling information provides better fitted distribution for codes.
- - The learned manifold images demostrate that each Gaussian component corresponds to the one class of digit. However, the style representation is not consistently represented within each mixture component as shown in the paper. For example, the right most column of the first row experiment, the lower right of digit 1 tilt to left while the lower right of digit 9 tilt to right.
+ - The learned manifold images demonstrate that each Gaussian component corresponds to the one class of digit. However, the style representation is not consistently represented within each mixture component as shown in the paper. For example, the right most column of the first row experiment, the lower right of digit 1 tilt to left while the lower right of digit 9 tilt to right.
 
 *Number of Label Used* | *Learned Coding Space* | *Learned Manifold*
 :--- | :---: | :---: |
