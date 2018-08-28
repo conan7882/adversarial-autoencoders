@@ -126,9 +126,11 @@ class Trainer(object):
         cur_summary = None
         cur_epoch = unlabel_data.epochs_completed
 
-        if self.epoch_id == 50:
-            self._lr = self._lr / 10
+        self.epoch_id += 1
+
         if self.epoch_id == 150:
+            self._lr = self._lr / 10
+        if self.epoch_id == 200:
             self._lr = self._lr / 10
 
         step = 0
