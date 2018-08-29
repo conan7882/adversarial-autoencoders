@@ -10,7 +10,7 @@ import tensorflow as tf
 import platform
 import scipy.misc
 import argparse
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 sys.path.append('../')
 from src.dataflow.mnist import MNISTData
