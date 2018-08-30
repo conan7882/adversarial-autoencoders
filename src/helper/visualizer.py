@@ -39,12 +39,13 @@ class Visualizer(object):
                 self._latent_op, 
                 feed_dict={self._model.encoder_in: im,
                            self._model.keep_prob: 1.})
-            try:           
-                latent_var_list.extend(latent_var[:, pick_dim])
-            except UnboundLocalError:
-                pick_dim = np.random.choice(len(latent_var[0]), 2, replace=False)
-                pick_dim = sorted(pick_dim)
-                latent_var_list.extend(latent_var[:, pick_dim])
+            latent_var_list.extend(latent_var)
+#             try:           
+#                 latent_var_list.extend(latent_var[:, pick_dim])
+#             except UnboundLocalError:
+#                 pick_dim = np.random.choice(len(latent_var[0]), 2, replace=False)
+#                 pick_dim = sorted(pick_dim)
+#                 latent_var_list.extend(latent_var[:, pick_dim])
 
             label_list.extend(labels)
             # print(latent_var)
