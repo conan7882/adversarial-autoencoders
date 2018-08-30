@@ -75,18 +75,9 @@ class Visualizer(object):
         ax.set_xlim([-3.5, 3.5])
         ax.set_ylim([-3.5, 3.5])
 
-        # if range_:
-        #     plt.xlim(*range_)
-        #     plt.ylim(*range_)
         if file_id is not None:
             fig_save_path = os.path.join(self._save_path, 'latent_{}.png'.format(file_id))
         else:
             fig_save_path = os.path.join(self._save_path, 'latent.png')
         plt.savefig(fig_save_path, bbox_inches="tight")
-        # print(fig_save_path)
-        # plt.show()
-        # if save:
-        #     title = "{}_latent_{}_round_{}_{}.png".format(
-        #         model.datetime, "_".join(map(str, model.architecture)),
-        #         model.step, name)
-        #     plt.savefig(os.path.join(outdir, title), bbox_inches="tight")
+

@@ -9,14 +9,13 @@ import gzip
 import struct
 import numpy as np 
 import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
-from tensorcv.dataflow.base import RNGDataFlow
 
+from src.utils.dataflow import get_rng
 
 def identity(im):
     return im
 
-class MNISTData(RNGDataFlow):
+class MNISTData(object):
     def __init__(self, name, data_dir='', n_use_label=None, n_use_sample=None,
                  batch_dict_name=None, shuffle=True, pf=identity):
         assert os.path.isdir(data_dir)
@@ -141,11 +140,13 @@ class MNISTData(RNGDataFlow):
         self.reset_epochs_completed(epoch_val)
         self.set_batch_size(batch_size)
         self.reset_state()
-        self._setup()
         try:
             self._suffle_files()
         except AttributeError:
             pass
+
+    def reset_epoch(self):
+        self._epochs_completed = 0
 
     @property
     def batch_size(self):
@@ -154,5 +155,15 @@ class MNISTData(RNGDataFlow):
     @property
     def epochs_completed(self):
         return self._epochs_completed
+
+    def set_batch_size(self, batch_size):
+        self._batch_size = batch_size
+
+    def reset_epochs_completed(self, epoch_val):
+        self._epochs_completed  = epoch_val
+
+    def reset_state(self):
+        self.rng = get_rng(self)
+        
 
 

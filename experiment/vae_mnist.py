@@ -20,17 +20,9 @@ from src.helper.generator import Generator
 from src.helper.visualizer import Visualizer
 import src.models.distribution as distribution
 
-if platform.node() == 'Qians-MacBook-Pro.local':
-    DATA_PATH = '/Users/gq/workspace/Dataset/MNIST_data/'
-    SAVE_PATH = '/Users/gq/tmp/draw/'
-    RESULT_PATH = '/Users/gq/tmp/ram/center/result/'
-elif platform.node() == 'arostitan':
-    DATA_PATH = '/home/qge2/workspace/data/MNIST_data/'
-    SAVE_PATH = '/home/qge2/workspace/data/out/vae/vae/'
-else:
-    DATA_PATH = 'E://Dataset//MNIST//'
-    SAVE_PATH = 'E:/tmp/vae/'
-    # RESULT_PATH = 'E:/tmp/ram/trans/result/'
+DATA_PATH = '/home/qge2/workspace/data/MNIST_data/'
+SAVE_PATH = '/home/qge2/workspace/data/out/vae/vae/'
+
 
 def get_args():
     parser = argparse.ArgumentParser()
