@@ -4,6 +4,7 @@
 # Author: Qian Ge <geqian1001@gmail.com>
 
 import os
+import numpy as np
 from scipy.io import loadmat
 from src.dataflow.mnist import MNISTData
 
