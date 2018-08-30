@@ -62,7 +62,7 @@ class Generator(object):
                              save_path=im_save_path, gap=0, gap_color=0,
                              shuffle=False)
 
-        dataflow.setup(epoch_val=epochs_completed, batch_size=batch_size)
+#         dataflow.setup(epoch_val=epochs_completed, batch_size=batch_size)
 
     def generate_samples(self, sess, plot_size, manifold=False, file_id=None):
         # if z is None:
