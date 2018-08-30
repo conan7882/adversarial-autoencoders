@@ -157,7 +157,7 @@ class AAE(BaseModel):
             one_hot_label = tf.one_hot(label, self.n_class) # [n_class*n_sample, n_class]
 
             z = ops.tf_sample_standard_diag_guassian(n_sample, self.n_code)
-            z = tf.tile(z, [n_class, 1]) # [n_class*n_sample, n_code]
+            z = tf.tile(z, [self.n_class, 1]) # [n_class*n_sample, n_code]
             decoder_in = tf.concat((z, one_hot_label), axis=-1)
             self.layers['generate'] = (self.decoder(decoder_in) + 1. ) / 2.
 
