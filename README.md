@@ -31,8 +31,8 @@
 ## Usage
 The script [experiment/aae_mnist.py](experiment/aae_mnist.py) contains all the experiments shown here. Detailed usage for each experiment will be describe later along with the results.
 ### Argument
-* `--train`: Train the model of Fig 1 and 3 in the paper..
-* `--train_supervised`: Train the model of Fig 6 in the paper..
+* `--train`: Train the model of Fig 1 and 3 in the paper.
+* `--train_supervised`: Train the model of Fig 6 in the paper.
 * `--train_semisupervised`: Train the model of Fig 8 in the paper.
 * `--label`: Incorporate label information in the adversarial regularization (Fig 3 in the paper).
 * `--generate`: Randomly sample images from trained model.
