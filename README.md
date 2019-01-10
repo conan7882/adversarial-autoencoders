@@ -74,16 +74,24 @@ Learning Rate | 2e-4 (initial) / 2e-5 (100 epochs) / 2e-6 (300 epochs)
 - Training. Summary, randomly sampled images and latent space during training will be saved in `SAVE_PATH`.
 
  ```
- python aae_mnist.py --train --ncode <CODE_DIM> --dist_type <TYPE_OF_PRIOR>
+ python aae_mnist.py --train \
+   --ncode CODE_DIM \
+   --dist_type TYPE_OF_PRIOR (`gaussian` or `gmm`)
  ```
  
  - Random sample data from trained model. Image will be saved in `SAVE_PATH` with name `generate_im.png`.
  ```
- python aae_mnist.py --generate --ncode <CODE_DIM> --dist_type <TYPE_OF_PRIOR> --load <RESTORE_MODEL_ID>
+ python aae_mnist.py --generate \
+   --ncode CODE_DIM \
+   --dist_type TYPE_OF_PRIOR (`gaussian` or `gmm`)\
+   --load RESTORE_MODEL_ID
  ```
  - Visualize latent space and data manifold (only when code dim = 2). Image will be saved in `SAVE_PATH` with name `generate_im.png` and `latent.png`. For Gaussian distribution, there will be one image for data manifold. For mixture of 10 2D Gaussian, there will be 10 images of data manifold for each component of the distribution.
  ```
- python aae_mnist.py --viz --ncode <CODE_DIM> --dist_type <TYPE_OF_PRIOR> --load <RESTORE_MODEL_ID>
+ python aae_mnist.py --viz \
+   --ncode CODE_DIM \
+   --dist_type TYPE_OF_PRIOR (`gaussian` or `gmm`)\
+   --load RESTORE_MODEL_ID
  ```
  <!---
 *name* | *command* 
@@ -117,7 +125,9 @@ Hyperparameters are the same as previous section.
 - Training. Summary, randomly sampled images and latent space will be saved in `SAVE_PATH`.
 
  ```
- python aae_mnist.py --train --ncode <CODE_DIM> --label --dist_type <TYPE_OF_PRIOR>
+ python aae_mnist.py --train --label\
+   --ncode CODE_DIM \
+   --dist_type TYPE_OF_PRIOR (`gaussian` or `gmm`)
  ```
  
 - Random sample data from trained model. Image will be saved in `SAVE_PATH` with name `generate_im.png`.
@@ -127,7 +137,10 @@ Hyperparameters are the same as previous section.
  
 - Visualize latent space and data manifold (only when code dim = 2). Image will be saved in `SAVE_PATH` with name `generate_im.png` and `latent.png`. For Gaussian distribution, there will be one image for data manifold. For mixture of 10 2D Gaussian, there will be 10 images of data manifold for each component of the distribution.
  ```
- python aae_mnist.py --viz --ncode <CODE_DIM> --label --dist_type <TYPE_OF_PRIOR> --load <RESTORE_MODEL_ID>
+ python aae_mnist.py --viz --label \
+   --ncode CODE_DIM \
+   --dist_type TYPE_OF_PRIOR (`gaussian` or `gmm`) \
+   --load RESTORE_MODEL_ID
  ```
  ### Result
  - Compare with the result in the previous section, incorporating labeling information provides better fitted distribution for codes.
@@ -151,12 +164,15 @@ Hyperparameters are the same as previous section.
 - Training. Summary and randomly sampled images will be saved in `SAVE_PATH`.
 
  ```
- python aae_mnist.py --ncode <CODE_DIM> --train_supervised
+ python aae_mnist.py --train_supervised \
+   --ncode CODE_DIM
  ```
  
  - Random sample data from trained model. Image will be saved in `SAVE_PATH` with name `sample_style.png`.
  ```
- python aae_mnist.py --ncode <CODE_DIM> --generate --supervise --load <RESTORE_MODEL_ID>
+ python aae_mnist.py  --generate --supervise\
+   --ncode CODE_DIM \
+   --load RESTORE_MODEL_ID
  ```
 
 ### Result
@@ -189,7 +205,11 @@ Learning Rate | 1e-4 (initial) / 1e-5 (150 epochs) / 1e-6 (200 epochs)
 - Training. Summary will be saved in `SAVE_PATH`.
 
  ```
- python aae_mnist.py --ncode 10 --train_semisupervised --lr 2e-4 --maxepoch 250
+ python aae_mnist.py \
+   --ncode 10 \
+   --train_semisupervised \
+   --lr 2e-4 \
+   --maxepoch 250
  ```
 
 ### Result
